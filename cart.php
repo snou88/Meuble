@@ -62,9 +62,9 @@ try {
         $dim = $d->fetch();
         if (!$dim) throw new Exception('Dimension not found');
 
-        // image for dimension
-        $imgStmt = $db->prepare('SELECT image_path FROM dimension_images WHERE dimension_id = :did ORDER BY is_primary DESC, id LIMIT 1');
-        $imgStmt->execute([':did' => $dimensionId]);
+        // image for product (schema uses product-level images)
+        $imgStmt = $db->prepare('SELECT image_path FROM product_images WHERE product_id = :pid ORDER BY id LIMIT 1');
+        $imgStmt->execute([':pid' => $productId]);
         $imgRow = $imgStmt->fetch();
         $image = $imgRow ? $imgRow['image_path'] : 'assets/images/default_product.jpg';
 

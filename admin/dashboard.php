@@ -10,7 +10,7 @@ require 'backendadmin.php';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tableau de bord | <?= htmlspecialchars($siteName) ?></title>
+    <title>Tableau de bord </title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/admin_dashboard.css">
 </head>
@@ -29,25 +29,46 @@ require 'backendadmin.php';
 
     <div class="dashboard-container">
         <div class="sidebar" id="sidebar">
+            <?php $messages_count = (int) ($unread_messages ?? $db->query("SELECT COUNT(*) FROM customer_messages")->fetchColumn()); ?>
             <div class="sidebar-nav">
-                <a href="dashboard.php" class="sidebar-link active">
+                <a href="dashboard.php"
+                    class="sidebar-link <?= ($page ?? 'dashboard') === 'dashboard' ? 'active' : '' ?>">
                     <i class="fas fa-tachometer-alt"></i>
                     <span>Tableau de bord</span>
                 </a>
-                <a href="#orders" class="sidebar-link" onclick="showTab('orders')">
+                <a href="dashboard.php?page=orders"
+                    class="sidebar-link <?= ($page ?? '') === 'orders' ? 'active' : '' ?>">
                     <i class="fas fa-shopping-cart"></i>
                     <span>Commandes</span>
                 </a>
-                <a href="#products" class="sidebar-link" onclick="showTab('products')">
+                <div class="sidebar-link has-sub <?= ($page ?? '') === 'products' ? 'open' : '' ?>" role="button"
+                    tabindex="0" aria-expanded="<?= ($page ?? '') === 'products' ? 'true' : 'false' ?>">
                     <i class="fas fa-tshirt"></i>
-                    <span>Produits</span>
+                    <div style="display: block;">
+                        <span>Produits <i class="fas fa-chevron-down caret"></i></span>
+                        <div class="submenu">
+                            <a href="dashboard.php?page=products&filter=made_to_order"
+                                class="sidebar-sublink <?= ($page ?? '') === 'products' && ($_GET['filter'] ?? '') === 'made_to_order' ? 'active' : '' ?>">Sur
+                                Commande</a>
+                            <a href="dashboard.php?page=products&filter=available"
+                                class="sidebar-sublink <?= ($page ?? '') === 'products' && ($_GET['filter'] ?? '') === 'available' ? 'active' : '' ?>">Disponible</a>
+                            <a href="dashboard.php?page=products"
+                                class="sidebar-sublink <?= ($page ?? '') === 'products' && !isset($_GET['filter']) ? 'active' : '' ?>">Tous</a>
+                        </div>
+                    </div>
+                </div>
+                <a href="dashboard.php?page=categories"
+                    class="sidebar-link <?= ($page ?? '') === 'categories' ? 'active' : '' ?>">
+                    <i class="fas fa-list-alt"></i>
+                    <span>Catégories</span>
                 </a>
-                <a href="#archives" class="sidebar-link" onclick="showTab('archives')">
-                    <i class="fas fa-archive"></i>
-                    <span>Archives</span>
+                <a href="dashboard.php?page=messages"
+                    class="sidebar-link <?= ($page ?? '') === 'messages' ? 'active' : '' ?>">
+                    <i class="fas fa-comments"></i>
+                    <span>Messages <span class="badge"><?= (int) $messages_count ?></span></span>
                 </a>
-                <!-- Site settings, hero, categories and videos tabs removed (not in simplified schema) -->
-                <a href="#wilayas" class="sidebar-link" onclick="showTab('wilayas')">
+                <a href="dashboard.php?page=wilayas"
+                    class="sidebar-link <?= ($page ?? '') === 'wilayas' ? 'active' : '' ?>">
                     <i class="fas fa-truck"></i>
                     <span>Wilayas & Livraison</span>
                 </a>
@@ -67,7 +88,9 @@ require 'backendadmin.php';
                 <div class="alert alert-error"><?= htmlspecialchars($error_message) ?></div>
             <?php endif; ?>
 
-            <div id="dashboard" class="tab-content active">
+            <?php $page = $_GET['page'] ?? 'dashboard'; ?>
+
+            <div id="dashboard" class="tab-content <?= $page === 'dashboard' ? 'active' : '' ?>">
                 <h1>Tableau de bord</h1>
 
                 <div class="stats-grid">
@@ -86,12 +109,22 @@ require 'backendadmin.php';
                         <h3>Commandes en attente</h3>
                         <p><?= htmlspecialchars($pending_orders) ?></p>
                     </div>
+                    <div class="stat-card">
+                        <i class="fas fa-box-open"></i>
+                        <h3>Produits</h3>
+                        <p><?= (int) ($total_products ?? 0) ?></p>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-envelope"></i>
+                        <h3>Messages non lus</h3>
+                        <p><?= (int) ($unread_messages ?? 0) ?></p>
+                    </div>
                 </div>
 
                 <div class="card">
                     <div class="card-header">
                         <h2 class="card-title">Dernières commandes</h2>
-                        <a href="#orders" class="btn" onclick="showTab('orders')">Voir tout</a>
+                        <a href="dashboard.php?page=orders" class="btn">Voir tout</a>
                     </div>
                     <div style="overflow-x: auto;">
                         <table>
@@ -168,116 +201,7 @@ require 'backendadmin.php';
                                                 <span class="label">Total:</span>
                                                 <?= number_format($order['total_price'], 2, ',', ' ') ?> DA
                                             <?php endif; ?>
-                                        </td>
-                                        <td>
-                                            <span class="status status-<?= $order['status'] ?>">
-                                                <?= $order['status'] ?>
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div style="display: flex; gap: 5px;">
-                                                <button class="btn btn-small btn-info"
-                                                    onclick="showClientDetailsAjax(<?= $order['id'] ?>)">
-                                                    <i class="fas fa-info-circle"></i> Détails
-                                                </button>
-                                                <form method="POST" style="display: inline;">
-                                                    <input type="hidden" name="order_id" value="<?= $order['id'] ?>">
-                                                    <button type="submit" name="delete_order"
-                                                        class="btn btn-small btn-danger"
-                                                        onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette commande? Cette action est irréversible.')">
-                                                        <i class="fas fa-trash"></i> Supprimer
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <div id="orders" class="tab-content">
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">Toutes les commandes</h2>
-                        <form method="GET" style="display: flex; gap: 10px; align-items: center;">
-                            <input type="text" name="search_phone" placeholder="Rechercher par téléphone"
-                                value="<?= isset($_GET['search_phone']) ? htmlspecialchars($_GET['search_phone']) : '' ?>"
-                                style="padding: 6px; border-radius: 4px; border: 1px solid #ccc;">
-                            <button type="submit" class="btn btn-small btn-info"><i class="fas fa-search"></i>
-                                Rechercher</button>
-                            <?php if (!empty($_GET['search_phone'])): ?>
-                                <a href="dashboard.php#orders" class="btn btn-small btn-secondary">Réinitialiser</a>
-                            <?php endif; ?>
-                        </form>
-                    </div>
-                    <div style="overflow-x: auto;">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Client</th>
-                                    <th>Produit</th>
-                                    <th>Image</th>
-                                    <th>Prix</th>
-                                    <th>Date</th>
-                                    <th>Statut</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($all_orders as $order): ?>
-                                    <?php $items = getOrderItems($db, $order['id']); ?>
-                                    <tr>
-                                        <td><?= htmlspecialchars($order['customer_name']) ?></td>
-                                        <td>
-                                            <?php if ($items): ?>
-                                                <?php foreach ($items as $item): ?>
-                                                    <?= htmlspecialchars($item['product_name']) ?> (Taille:
-                                                    <?= htmlspecialchars($item['size']) ?>, Qte:
-                                                    <?= $item['quantity'] ?>             <?php if (!empty($item['color'])): ?>, Couleur: <span
-                                                            style="display: inline-block; width: 15px; height: 15px; background-color: <?= htmlspecialchars($item['color_code'] ?? $item['color']) ?>; border: 1px solid #ddd; border-radius: 50%; vertical-align: middle; margin-right: 5px;"></span><?= htmlspecialchars($item['color']) ?><?php endif; ?>)<br>
-                                                <?php endforeach; ?>
-                                            <?php else: ?>
-                                                <?= htmlspecialchars($order['product_name'] ?? '') ?> (Taille:
-                                                <?= htmlspecialchars($order['size'] ?? '') ?>, Qte:
-                                                <?= $order['quantity'] ?? 1 ?>         <?php if (!empty($order['color'])): ?>, Couleur:
-                                                    <span
-                                                        style="display: inline-block; width: 15px; height: 15px; background-color: <?= htmlspecialchars($order['color_code'] ?? $order['color']) ?>; border: 1px solid #ddd; border-radius: 50%; vertical-align: middle; margin-right: 5px;"></span><?= htmlspecialchars($order['color']) ?><?php endif; ?>)
-                                            <?php endif; ?>
-                                        </td>
-                                        <td>
-                                            <?php if ($items && !empty($items[0]['product_image'])): ?>
-                                                <img src="../<?= $items[0]['product_image'] ?>" class="product-image-thumb">
-                                            <?php elseif (!empty($order['product_image'])): ?>
-                                                <img src="../<?= $order['product_image'] ?>" class="product-image-thumb">
-                                            <?php else: ?>
-                                                <img src="../images/default_product.jpg" class="product-image-thumb">
-                                            <?php endif; ?>
-                                        </td>
-                                        <td class="price-details">
-                                            <?php if ($items): ?>
-                                                <?php $total = 0;
-                                                foreach ($items as $item) {
-                                                    $total += $item['product_price'] * $item['quantity'];
-                                                } ?>
-                                                <span class="label">Produit:</span> <?= number_format($total, 2, ',', ' ') ?>
-                                                DA<br>
-                                                <span class="label">Livraison:</span>
-                                                <?= number_format($order['delivery_price'], 2, ',', ' ') ?> DA<br>
-                                                <span class="label">Total:</span>
-                                                <?= number_format($order['total_price'], 2, ',', ' ') ?> DA
-                                            <?php else: ?>
-                                                <span class="label">Produit:</span>
-                                                <?= number_format($order['product_price'] ?? 0, 2, ',', ' ') ?> DA<br>
-                                                <span class="label">Livraison:</span>
-                                                <?= number_format($order['delivery_price'], 2, ',', ' ') ?> DA<br>
-                                                <span class="label">Total:</span>
-                                                <?= number_format($order['total_price'], 2, ',', ' ') ?> DA
-                                            <?php endif; ?>
-                                        </td>
-                                        <td><?= date('d/m/Y H:i', strtotime($order['order_date'])) ?></td>
+                                        <td><?= date('d/m/Y H:i', strtotime($order['created_at'])) ?></td>
                                         <td>
                                             <form method="POST" class="status-form">
                                                 <input type="hidden" name="order_id" value="<?= $order['id'] ?>">
@@ -327,7 +251,7 @@ require 'backendadmin.php';
                 </div>
             </div>
 
-            <div id="archives" class="tab-content">
+            <div id="archives" class="tab-content <?= $page === 'archives' ? 'active' : '' ?>">
                 <div class="card">
                     <div class="card-header">
                         <h2 class="card-title">Toutes les archives</h2>
@@ -406,7 +330,7 @@ require 'backendadmin.php';
                                                 <?= number_format($order['total_price'], 2, ',', ' ') ?> DA
                                             <?php endif; ?>
                                         </td>
-                                        <td><?= date('d/m/Y H:i', strtotime($order['order_date'])) ?></td>
+                                        <td><?= date('d/m/Y H:i', strtotime($order['created_at'])) ?></td>
                                         <td>
                                             <form method="POST" class="status-form">
                                                 <input type="hidden" name="order_id" value="<?= $order['id'] ?>">
@@ -457,7 +381,7 @@ require 'backendadmin.php';
             </div>
 
 
-            <div id="products" class="tab-content">
+            <div id="products" class="tab-content <?= $page === 'products' ? 'active' : '' ?>">
                 <div class="card">
                     <div class="card-header">
                         <h2 class="card-title">Gestion des Produits</h2>
@@ -467,18 +391,21 @@ require 'backendadmin.php';
                     </div>
 
                     <div class="product-list">
-                        <?php foreach ($products as $product): ?>
+                        <?php
+                        $filter = $_GET['filter'] ?? null;
+                        $productsToShow = $products;
+                        if ($filter === 'made_to_order' || $filter === 'available') {
+                            $productsToShow = array_filter($products, function ($p) use ($filter) {
+                                return ($p['product_type'] ?? 'made_to_order') === $filter; });
+                        }
+                        ?>
+                        <?php foreach ($productsToShow as $product): ?>
                             <div class="product-card">
                                 <?php
-                                // Determine primary image from dimensions
+                                // Determine primary product image (new schema uses product_images table)
                                 $primaryImage = null;
-                                if (!empty($product['dimensions'])) {
-                                    foreach ($product['dimensions'] as $d) {
-                                        if (!empty($d['images'])) {
-                                            $primaryImage = $d['images'][0]['image_path'];
-                                            break;
-                                        }
-                                    }
+                                if (!empty($product['images'])) {
+                                    $primaryImage = $product['images'][0]['image_path'];
                                 }
                                 ?>
                                 <?php if (!empty($primaryImage)): ?>
@@ -498,15 +425,16 @@ require 'backendadmin.php';
                                         <?php endforeach; ?>
                                     </ul>
                                     <?php
-                                        // grouper les couleurs par type pour un affichage clair
-                                        $colors_by_type = ['tissu' => [], 'bois' => []];
-                                        if (!empty($product['colors'])) {
-                                            foreach ($product['colors'] as $c) {
-                                                $t = strtolower($c['type'] ?? 'tissu');
-                                                if (!isset($colors_by_type[$t])) $colors_by_type[$t] = [];
-                                                $colors_by_type[$t][] = $c;
-                                            }
+                                    // grouper les couleurs par type pour un affichage clair
+                                    $colors_by_type = ['tissu' => [], 'bois' => []];
+                                    if (!empty($product['colors'])) {
+                                        foreach ($product['colors'] as $c) {
+                                            $t = strtolower($c['type'] ?? 'tissu');
+                                            if (!isset($colors_by_type[$t]))
+                                                $colors_by_type[$t] = [];
+                                            $colors_by_type[$t][] = $c;
                                         }
+                                    }
                                     ?>
                                     <?php if (!empty($product['colors'])): ?>
                                         <div class="color-preview enhanced-color-preview">
@@ -515,8 +443,11 @@ require 'backendadmin.php';
                                                     <div class="color-section-title">Tissu</div>
                                                     <div class="color-swatches">
                                                         <?php foreach ($colors_by_type['tissu'] as $color): ?>
-                                                            <div class="color-swatch" title="<?= htmlspecialchars($color['color_name']) ?>" style="background-color: <?= htmlspecialchars($color['color_code'] ?? '#ffffff') ?>;">
-                                                                <span class="color-name"><?= htmlspecialchars($color['color_name']) ?></span>
+                                                            <div class="color-swatch"
+                                                                title="<?= htmlspecialchars($color['color_name']) ?>"
+                                                                style="background-color: <?= htmlspecialchars($color['color_code'] ?? '#ffffff') ?>;">
+                                                                <span
+                                                                    class="color-name"><?= htmlspecialchars($color['color_name']) ?></span>
                                                             </div>
                                                         <?php endforeach; ?>
                                                     </div>
@@ -527,13 +458,29 @@ require 'backendadmin.php';
                                                     <div class="color-section-title">Bois</div>
                                                     <div class="color-swatches">
                                                         <?php foreach ($colors_by_type['bois'] as $color): ?>
-                                                            <div class="color-swatch" title="<?= htmlspecialchars($color['color_name']) ?>" style="background-color: <?= htmlspecialchars($color['color_code'] ?? '#ffffff') ?>;">
-                                                                <span class="color-name"><?= htmlspecialchars($color['color_name']) ?></span>
+                                                            <div class="color-swatch"
+                                                                title="<?= htmlspecialchars($color['color_name']) ?>"
+                                                                style="background-color: <?= htmlspecialchars($color['color_code'] ?? '#ffffff') ?>;">
+                                                                <span
+                                                                    class="color-name"><?= htmlspecialchars($color['color_name']) ?></span>
                                                             </div>
                                                         <?php endforeach; ?>
                                                     </div>
                                                 </div>
                                             <?php endif; ?>
+                                        </div>
+                                    <?php endif; ?>
+
+                                    <?php if (!empty($product['material_catalogs'])): ?>
+                                        <div class="form-group">
+                                            <label>Model</label>
+                                            <div style="display:flex; gap:8px; align-items:center;">
+                                                <?php foreach ($product['material_catalogs'] as $m): ?>
+                                                    <img src="../<?= htmlspecialchars($m['image_path']) ?>"
+                                                        style="width:40px;height:40px;object-fit:cover;border:1px solid #ddd;border-radius:4px;"
+                                                        title="<?= htmlspecialchars($m['material_type']) ?>">
+                                                <?php endforeach; ?>
+                                            </div>
                                         </div>
                                     <?php endif; ?>
                                     <p><?= htmlspecialchars($product['description']) ?></p>
@@ -560,9 +507,401 @@ require 'backendadmin.php';
                 </div>
             </div>
 
-            <!-- Categories tab removed (not supported by simplified schema) -->
+            <div id="categories" class="tab-content <?= $page === 'categories' ? 'active' : '' ?>">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Catégories de produits</h2>
+                        <button class="btn"
+                            onclick="document.getElementById('addProductCategoryModal').style.display='block'">Ajouter</button>
+                    </div>
+                    <div class="card-body">
+                        <?php $prod_cats = $db->query("SELECT * FROM categories ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC); ?>
+                        <?php if (empty($prod_cats)): ?>
+                            <div class="empty-state">Aucune catégorie. <button class="btn btn-small"
+                                    onclick="document.getElementById('addProductCategoryModal').style.display='block'">Ajouter</button>
+                            </div>
+                        <?php else: ?>
+                            <div style="overflow-x:auto;">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Image</th>
+                                            <th>Nom</th>
+                                            <th>Description</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($prod_cats as $c): ?>
+                                            <tr data-cat-id="<?= $c['id'] ?>">
+                                                <td style="width:90px;"><?php if (!empty($c['image_path'])): ?><img
+                                                            src="../<?= htmlspecialchars($c['image_path']) ?>"
+                                                            style="height:60px;object-fit:cover;border-radius:6px;"><?php else: ?>
+                                                        <div
+                                                            style="height:60px;width:90px;background:#f1f1f1;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#888">
+                                                            No</div><?php endif; ?>
+                                                </td>
+                                                <td class="cat-name"><?= htmlspecialchars($c['name']) ?></td>
+                                                <td class="cat-desc" style="max-width:520px;">
+                                                    <?= nl2br(htmlspecialchars(mb_substr($c['description'], 0, 350))) ?>        <?= mb_strlen($c['description']) > 350 ? '...' : '' ?>
+                                                </td>
+                                                <td>
+                                                    <button class="btn btn-small"
+                                                        onclick="openEditCategory(<?= $c['id'] ?>, <?= json_encode(htmlspecialchars($c['name'], ENT_QUOTES)) ?>, <?= json_encode(htmlspecialchars($c['description'], ENT_QUOTES)) ?>, <?= json_encode($c['image_path'] ?? '') ?>)"><i
+                                                            class="fas fa-edit"></i> Modifier</button>
+                                                    <form method="post" style="display:inline;"
+                                                        onsubmit="return deleteCategoryForm(this)">
+                                                        <input type="hidden" name="cat_id" value="<?= $c['id'] ?>">
+                                                        <button class="btn btn-small btn-danger"
+                                                            name="delete_product_category">Supprimer</button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
 
-            <div id="wilayas" class="tab-content">
+                <!-- Add Product Category Modal -->
+                <div id="addProductCategoryModal" class="modal"
+                    style="display:none; position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.5);">
+                    <div style="background:white;padding:20px;margin:50px auto;max-width:600px;">
+                        <h3>Ajouter une catégorie</h3>
+                        <form id="addProductCategoryForm" method="post" enctype="multipart/form-data">
+                            <label>Nom</label><br>
+                            <input type="text" name="cat_name" required><br>
+                            <label>Description (optionnel)</label><br>
+                            <textarea name="cat_description" style="width:100%;height:100px;margin-top:6px"></textarea>
+                            <label style="margin-top:8px">Image (optionnel)</label><br>
+                            <input id="add_cat_image" type="file" name="cat_image" accept="image/*"><br>
+                            <img id="add_cat_preview" src="" class="img-preview" style="display:none;">
+                            <div style="margin-top:12px;text-align:right">
+                                <button class="btn" type="submit" name="add_product_category">Ajouter</button>
+                                <button type="button" class="btn btn-secondary"
+                                    onclick="document.getElementById('addProductCategoryModal').style.display='none'">Fermer</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Edit Product Category Modal -->
+                <div id="editProductCategoryModal" class="modal"
+                    style="display:none; position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.5);">
+                    <div style="background:white;padding:20px;margin:50px auto;max-width:600px;">
+                        <h3>Modifier la catégorie</h3>
+                        <form id="editProductCategoryForm" method="post" enctype="multipart/form-data">
+                            <input type="hidden" name="cat_id" id="edit_cat_id">
+                            <input type="hidden" name="cat_remove_image" id="edit_cat_remove_image" value="0">
+                            <label>Nom</label><br>
+                            <input type="text" name="cat_name" id="edit_cat_name" required><br>
+                            <label>Description (optionnel)</label><br>
+                            <textarea name="cat_description" id="edit_cat_description"
+                                style="width:100%;height:100px;margin-top:6px"></textarea>
+                            <label style="margin-top:8px">Image (optionnel — remplace l'existante)</label><br>
+                            <input id="edit_cat_image" type="file" name="cat_image" accept="image/*"><br>
+                            <img id="edit_cat_preview" src="" class="img-preview" style="display:none;">
+                            <div style="margin-top:8px;margin-bottom:8px;">
+                                <button type="button" id="edit_remove_image_btn" class="btn btn-small btn-danger"
+                                    style="display:none;">Supprimer l'image</button>
+                            </div>
+                            <div style="margin-top:12px;text-align:right">
+                                <button class="btn" type="submit" name="update_product_category">Enregistrer</button>
+                                <button type="button" class="btn btn-secondary"
+                                    onclick="document.getElementById('editProductCategoryModal').style.display='none'">Fermer</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <script>
+                    function previewFile(file, previewId) {
+                        const img = document.getElementById(previewId);
+                        if (!img) return;
+                        if (!file) { img.style.display = 'none'; img.src = ''; return; }
+                        const reader = new FileReader();
+                        reader.onload = function (e) {
+                            img.src = e.target.result;
+                            img.style.display = 'block';
+                        }
+                        reader.readAsDataURL(file);
+                    }
+
+                    document.getElementById('edit_cat_image').addEventListener('change', function (e) {
+                        previewFile(this.files[0], 'edit_cat_preview');
+                    });
+                    document.getElementById('add_cat_image').addEventListener('change', function (e) {
+                        previewFile(this.files[0], 'add_cat_preview');
+                    });
+
+                    function openEditCategory(id, name, desc, imagePath) {
+                        document.getElementById('edit_cat_id').value = id;
+                        document.getElementById('edit_cat_name').value = name;
+                        document.getElementById('edit_cat_description').value = desc;
+                        // if image exists, show preview
+                        const preview = document.getElementById('edit_cat_preview');
+                        if (preview) {
+                            if (imagePath && imagePath.length) { preview.src = '../' + imagePath; preview.style.display = 'block'; } else { preview.style.display = 'none'; preview.src = ''; }
+                        }
+                        document.getElementById('editProductCategoryModal').style.display = 'block';
+                    }
+
+                    function deleteCategoryForm(form) {
+                        const id = form.querySelector('input[name="cat_id"]').value;
+                        if (!confirm('Supprimer cette catégorie ? Les produits resteront mais perdront la catégorie.')) return false;
+                        deleteCategoryAjax(id, form);
+                        return false; // prevent actual form submit; AJAX will handle
+                    }
+
+                    function deleteCategoryAjax(id, formOrBtn) {
+                        const btn = formOrBtn.querySelector('button') || formOrBtn;
+                        // show spinner
+                        const spinner = document.createElement('span'); spinner.className = 'spinner';
+                        btn.disabled = true; btn.appendChild(spinner);
+
+                        fetch('backendadmin.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: 'delete_product_category=1&cat_id=' + encodeURIComponent(id) + '&ajax=1'
+                        }).then(res => res.json()).then(data => {
+                            btn.disabled = false; spinner.remove();
+                            if (data.ok) {
+                                // remove table row
+                                const tr = formOrBtn.closest('tr'); if (tr) tr.remove();
+                                // remove category options from selects
+                                document.querySelectorAll('select[name="category_id"]').forEach(sel => { const opt = sel.querySelector('option[value="' + id + '"]'); if (opt) opt.remove(); });
+                                showToast('Catégorie supprimée', 'success');
+                            } else {
+                                showToast('Erreur: ' + (data.error || 'Impossible de supprimer'), 'error');
+                            }
+                        }).catch(err => {
+                            btn.disabled = false; spinner.remove();
+                            showToast('Erreur réseau', 'error');
+                        });
+                    }
+
+                    // Toast helper
+                    function showToast(message, type = 'info') {
+                        let container = document.getElementById('toast_container');
+                        if (!container) {
+                            container = document.createElement('div');
+                            container.id = 'toast_container';
+                            container.style.position = 'fixed';
+                            container.style.top = '20px';
+                            container.style.right = '20px';
+                            container.style.zIndex = 2000;
+                            document.body.appendChild(container);
+                        }
+                        const t = document.createElement('div');
+                        t.className = 'toast ' + (type === 'error' ? 'toast-error' : (type === 'success' ? 'toast-success' : 'toast-info'));
+                        t.textContent = message;
+                        t.style.marginTop = '8px';
+                        t.style.padding = '10px 14px';
+                        t.style.borderRadius = '6px';
+                        t.style.boxShadow = '0 4px 10px rgba(0,0,0,0.08)';
+                        t.style.color = '#fff';
+                        t.style.background = (type === 'success' ? '#28a745' : (type === 'error' ? '#dc3545' : '#333'));
+                        container.appendChild(t);
+                        setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 4000);
+                    }
+
+                    // Add category via AJAX
+                    document.getElementById('addProductCategoryForm').addEventListener('submit', function (e) {
+                        e.preventDefault();
+                        const form = this;
+                        const btn = form.querySelector('button[type="submit"]');
+                        const spinner = document.createElement('span'); spinner.className = 'spinner';
+                        btn.disabled = true; btn.appendChild(spinner);
+                        const fd = new FormData(form);
+                        fd.append('ajax', '1');
+                        fd.append('add_product_category', '1');
+                        fetch('backendadmin.php', { method: 'POST', body: fd }).then(r => r.json()).then(data => {
+                            btn.disabled = false; spinner.remove();
+                            if (data.ok) {
+                                const c = data.category;
+                                // create table row
+                                const tbody = document.querySelector('#categories table tbody');
+                                if (tbody) {
+                                    const tr = document.createElement('tr'); tr.setAttribute('data-cat-id', c.id);
+                                    let imgCell = '<td style="width:90px;">';
+                                    if (c.image_path) imgCell += '<img src="../' + c.image_path + '" style="height:60px;object-fit:cover;border-radius:6px;">'; else imgCell += '<div style="height:60px;width:90px;background:#f1f1f1;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#888">No</div>';
+                                    imgCell += '</td>';
+                                    tr.innerHTML = imgCell + '<td class="cat-name">' + escapeHtml(c.name) + '</td><td class="cat-desc">' + escapeHtml(c.description).substring(0, 350) + (c.description && c.description.length > 350 ? '...' : '') + '</td><td><button class="btn btn-small" onclick="openEditCategory(' + c.id + ', ' + JSON.stringify(c.name) + ', ' + JSON.stringify(c.description) + ', ' + JSON.stringify(c.image_path || '') + ')"><i class="fas fa-edit"></i> Modifier</button> <form method="post" style="display:inline;" onsubmit="return deleteCategoryForm(this)"><input type="hidden" name="cat_id" value="' + c.id + '"><button class="btn btn-small btn-danger" name="delete_product_category">Supprimer</button></form></td>';
+                                    tbody.insertBefore(tr, tbody.firstChild);
+                                }
+                                // add option to selects
+                                document.querySelectorAll('select[name="category_id"]').forEach(sel => {
+                                    const opt = document.createElement('option'); opt.value = c.id; opt.textContent = c.name; sel.appendChild(opt);
+                                });
+                                document.getElementById('addProductCategoryModal').style.display = 'none';
+                                form.reset(); document.getElementById('add_cat_preview').style.display = 'none';
+                                showToast('Catégorie ajoutée', 'success');
+                            } else {
+                                showToast('Erreur: ' + (data.error || 'Impossible d\'ajouter'), 'error');
+                            }
+                        }).catch(err => { btn.disabled = false; spinner.remove(); showToast('Erreur réseau', 'error'); });
+                    });
+
+                    // Edit category via AJAX
+                    document.getElementById('editProductCategoryForm').addEventListener('submit', function (e) {
+                        e.preventDefault();
+                        const form = this;
+                        const btn = form.querySelector('button[type="submit"]');
+                        const spinner = document.createElement('span'); spinner.className = 'spinner';
+                        btn.disabled = true; btn.appendChild(spinner);
+                        const fd = new FormData(form);
+                        fd.append('ajax', '1');
+                        fd.append('update_product_category', '1');
+                        fetch('backendadmin.php', { method: 'POST', body: fd }).then(r => r.json()).then(data => {
+                            btn.disabled = false; spinner.remove();
+                            if (data.ok) {
+                                const c = data.category;
+                                // update table row
+                                const tr = document.querySelector('tr[data-cat-id="' + c.id + '"]');
+                                if (tr) {
+                                    const imgCell = tr.querySelector('td:first-child');
+                                    if (imgCell) {
+                                        if (c.image_path) imgCell.innerHTML = '<img src="../' + c.image_path + '" style="height:60px;object-fit:cover;border-radius:6px;">'; else imgCell.innerHTML = '<div style="height:60px;width:90px;background:#f1f1f1;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#888">No</div>';
+                                    }
+                                    const nameEl = tr.querySelector('.cat-name'); if (nameEl) nameEl.textContent = c.name;
+                                    const descEl = tr.querySelector('.cat-desc'); if (descEl) descEl.textContent = c.description.length > 350 ? c.description.substring(0, 350) + '...' : c.description;
+                                }
+                                // update selects labels
+                                document.querySelectorAll('select[name="category_id"] option').forEach(opt => { if (opt.value == c.id) opt.textContent = c.name; });
+                                document.getElementById('editProductCategoryModal').style.display = 'none';
+                                showToast('Catégorie mise à jour', 'success');
+                            } else {
+                                showToast('Erreur: ' + (data.error || 'Impossible de modifier'), 'error');
+                            }
+                        }).catch(err => { btn.disabled = false; spinner.remove(); showToast('Erreur réseau', 'error'); });
+                    });
+
+                    // remove image handler in edit modal (client-side + set flag)
+                    document.getElementById('edit_remove_image_btn').addEventListener('click', function () {
+                        document.getElementById('edit_cat_preview').style.display = 'none';
+                        document.getElementById('edit_cat_preview').src = '';
+                        document.getElementById('edit_cat_remove_image').value = '1';
+                        this.style.display = 'none';
+                        showToast('Image supprimée (enregistrée après sauvegarde)', 'info');
+                    });
+
+                    // when an image file is chosen in edit modal, reset remove flag and show preview and show remove button
+                    document.getElementById('edit_cat_image').addEventListener('change', function () {
+                        const f = this.files && this.files[0];
+                        if (f) { document.getElementById('edit_cat_remove_image').value = '0'; document.getElementById('edit_remove_image_btn').style.display = 'inline-block'; }
+                    });
+
+                    // helper to escape text for insertion into HTML (basic)
+                    function escapeHtml(text) { if (!text) return ''; return text.replace(/[&<>"']/g, function (m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": "&#39;" }[m]; }); }
+
+                </script>
+            </div>
+
+            <!-- Customer messages page -->
+            <div id="messages" class="tab-content <?= $page === 'messages' ? 'active' : '' ?>">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Messages clients</h2>
+                    </div>
+                    <div class="card-body">
+                        <?php
+                        try {
+                            $messages = $db->query("SELECT * FROM customer_messages ORDER BY created_at DESC")->fetchAll(PDO::FETCH_ASSOC);
+                        } catch (Exception $e) {
+                            $messages = [];
+                            echo '<div class="alert alert-error">Erreur: ' . htmlspecialchars($e->getMessage()) . '</div>';
+                        }
+                        ?>
+                        <div style="margin-bottom:10px;color:#666;">Messages:
+                            <?= (int) count($messages) ?>
+                            <?php if (!empty($unread_messages)): ?>(<strong>
+                                    <?= (int) $unread_messages ?>
+                                </strong> non lus)
+                            <?php endif; ?>
+                        </div>
+                        <?php if (empty($messages)): ?>
+                            <div class="empty-state">Aucun message pour le moment.</div>
+                        <?php else: ?>
+                            <div class="message-list">
+                                <?php foreach ($messages as $m): ?>
+                                    <?php $initials = strtoupper(substr(trim($m['client_name']), 0, 1) ?: 'U'); ?>
+                                    <div class="message-card" data-id="<?= $m['id'] ?>"
+                                        data-email="<?= htmlspecialchars($m['client_email'], ENT_QUOTES) ?>"
+                                        data-phone="<?= htmlspecialchars($m['client_phone'], ENT_QUOTES) ?>"
+                                        data-name="<?= htmlspecialchars($m['client_name'], ENT_QUOTES) ?>"
+                                        data-comment="<?= htmlspecialchars($m['comment'], ENT_QUOTES) ?>"
+                                        data-date="<?= $m['created_at'] ?>" data-is-read="<?= (int) ($m['is_read'] ?? 0) ?>">
+                                        <div class="avatar">
+                                            <?= $initials ?>
+                                        </div>
+                                        <div class="message-main">
+                                            <div class="message-meta">
+                                                <strong>
+                                                    <?= htmlspecialchars($m['client_name']) ?>
+                                                </strong>
+                                                <?php if (empty($m['is_read'])): ?> <span
+                                                        class="badge badge-unread">Nouveau</span>
+                                                <?php endif; ?>
+                                                <span class="message-date">
+                                                    <?= date('d/m/Y H:i', strtotime($m['created_at'])) ?>
+                                                </span>
+                                            </div>
+                                            <div class="message-excerpt">
+                                                <?= nl2br(htmlspecialchars(mb_substr($m['comment'], 0, 300))) ?>
+                                                <?= mb_strlen($m['comment']) > 300 ? '...' : '' ?>
+                                            </div>
+                                        </div>
+                                        <div class="message-actions">
+                                            <button class="btn btn-small btn-info" onclick="viewMessageCard(this)"> <i
+                                                    class="fas fa-eye"></i></button>
+                                            <?php if (empty($m['is_read'])): ?>
+                                                <button class="btn btn-small btn-success"
+                                                    onclick="markMessageRead(this, <?= $m['id'] ?>)"><i
+                                                        class="fas fa-check"></i></button>
+                                            <?php endif; ?>
+                                            <button class="btn btn-small btn-danger"
+                                                onclick="deleteMessageCard(this, <?= $m['id'] ?>)"><i
+                                                    class="fas fa-trash"></i></button>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <!-- Message View Modal -->
+                <div class="modal" id="messageModal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3 class="modal-title">Détails du message</h3>
+                            <button class="modal-close" onclick="hideMessageModal()">&times;</button>
+                        </div>
+                        <div style="padding:10px;">
+                            <p><strong>Nom:</strong> <span id="msg_name"></span></p>
+                            <p><strong>Email:</strong> <span id="msg_email"></span></p>
+                            <p><strong>Téléphone:</strong> <span id="msg_phone"></span></p>
+                            <p><strong>Date:</strong> <span id="msg_date"></span></p>
+                            <div style="margin-top:12px;"><strong>Message:</strong>
+                                <div id="msg_comment"
+                                    style="white-space:pre-wrap;margin-top:6px;padding:10px;background:#f8f8f8;border-radius:6px;border:1px solid #eee;">
+                                </div>
+                            </div>
+                            <div style="margin-top:12px;text-align:right;"><button class="btn btn-secondary"
+                                    onclick="hideMessageModal()">Fermer</button></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="wilayas" class="tab-content <?= $page === 'wilayas' ? 'active' : '' ?>">
+
+
+
+
+
                 <div class="card">
                     <div class="card-header">
                         <h2 class="card-title">Wilayas & Prix de livraison</h2>
@@ -676,8 +1015,24 @@ require 'backendadmin.php';
                 <h3 class="modal-title">Ajouter un nouveau produit</h3>
                 <button class="modal-close" onclick="hideAddProductModal()">&times;</button>
             </div>
-            <form method="POST" enctype="multipart/form-data">
-                <input type="hidden" name="add_product" value="1">
+            <form id="add_product_form" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="add_product_v2" value="1">
+
+                <div class="form-group">
+                    <label for="product_type">Type de produit</label>
+                    <select id="product_type" name="product_type">
+                        <option value="made_to_order">Sur Commande</option>
+                        <option value="available">Disponible</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="product_images">Images du produit</label>
+                    <!-- Hidden file input — visually we show an image grid with a + tile -->
+                    <input type="file" id="product_images" name="product_images[]" multiple accept="image/*"
+                        style="display:none;">
+                    <div id="add-images-grid" class="image-grid" data-target-input="product_images"></div>
+                </div>
 
                 <div class="form-group">
                     <label for="name">Nom du produit</label>
@@ -687,6 +1042,17 @@ require 'backendadmin.php';
                 <div class="form-group">
                     <label for="description">Description</label>
                     <textarea id="description" name="description" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Catégorie (optionnel)</label>
+                    <?php $cats = $db->query("SELECT id, name FROM categories ORDER BY name")->fetchAll(PDO::FETCH_ASSOC); ?>
+                    <select name="category_id">
+                        <option value="">Aucune</option>
+                        <?php foreach ($cats as $ct): ?>
+                            <option value="<?= $ct['id'] ?>"><?= htmlspecialchars($ct['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
 
                 <div class="form-group">
@@ -706,6 +1072,24 @@ require 'backendadmin.php';
                             <i class="fas fa-plus"></i> Ajouter une couleur
                         </button>
                     </div>
+
+                    <div class="form-group">
+                        <label>Matériaux (Model)</label>
+                        <div style="display:flex; gap:12px; align-items:flex-start;" id="add-material-inputs">
+                            <div style="flex:1">
+                                <label>Tissu (nuancier)</label><br>
+                                <input type="file" name="material_tissu" accept="image/*"><br>
+                                <textarea name="material_tissu_description" placeholder="Description (optionnel)"
+                                    style="width:100%; margin-top:6px; height:60px;"></textarea>
+                            </div>
+                            <div style="flex:1">
+                                <label>Bois (nuancier)</label><br>
+                                <input type="file" name="material_bois" accept="image/*"><br>
+                                <textarea name="material_bois_description" placeholder="Description (optionnel)"
+                                    style="width:100%; margin-top:6px; height:60px;"></textarea>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="form-actions">
@@ -717,6 +1101,42 @@ require 'backendadmin.php';
                     </button>
                 </div>
             </form>
+            <script>
+                // Client-side validation for add/edit product
+                document.getElementById('add_product_form').addEventListener('submit', function (e) {
+                    // ensure at least one dimension is present with a label
+                    const dims = Array.from(document.querySelectorAll('#dimensions-container .dimension-row'));
+                    if (dims.length === 0 || dims.every(r => !r.querySelector('input[name="dim_label[]"]').value.trim())) {
+                        e.preventDefault();
+                        alert('Au moins une dimension (avec un label) est requise.');
+                        return false;
+                    }
+                    // ensure at least one image selected
+                    const imgInput = document.getElementById('product_images');
+                    if (!imgInput || (!imgInput.files || imgInput.files.length === 0)) {
+                        e.preventDefault();
+                        alert('Au moins une image de produit est requise.');
+                        return false;
+                    }
+                });
+
+                document.getElementById('edit_product_form').addEventListener('submit', function (e) {
+                    const dims = Array.from(document.querySelectorAll('#edit-dimensions-container .dimension-row'));
+                    if (dims.length === 0 || dims.every(r => !r.querySelector('input[name="dim_label[]"]').value.trim())) {
+                        e.preventDefault();
+                        alert('Au moins une dimension (avec un label) est requise.');
+                        return false;
+                    }
+                    // ensure image exists (either existing grid or new upload)
+                    const existing = document.querySelectorAll('#edit-product-images .image-tile:not(.image-add-tile)');
+                    const imgInput = document.getElementById('edit_product_images');
+                    if ((existing.length === 0) && (!imgInput || !imgInput.files || imgInput.files.length === 0)) {
+                        e.preventDefault();
+                        alert('Au moins une image de produit est requise.');
+                        return false;
+                    }
+                });
+            </script>
         </div>
     </div>
 
@@ -727,15 +1147,57 @@ require 'backendadmin.php';
                 <h3 class="modal-title">Modifier le produit</h3>
                 <button class="modal-close" onclick="hideEditProductModal()">&times;</button>
             </div>
-            <form method="POST" enctype="multipart/form-data">
-                <input type="hidden" name="update_product" value="1">
+            <form id="edit_product_form" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="update_product_v2" value="1">
                 <input type="hidden" name="product_id" id="edit_product_id">
-                <input type="hidden" name="current_image_path" id="edit_current_image_path">
+                <input type="hidden" name="edit_current_image_path" id="edit_current_image_path" value="">
+
+                <div class="form-group">
+                    <label for="edit_product_type">Type de produit</label>
+                    <select id="edit_product_type" name="product_type">
+                        <option value="made_to_order">Sur Commande</option>
+                        <option value="available">Disponible</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Images actuelles</label>
+                    <div id="edit-product-images" style="display:flex; gap:8px; align-items:center;"></div>
+                </div>
+                <!-- Removed separate material-catalogs display and duplicate add-images block - images are managed in "Images actuelles" grid -->
+                <div class="form-group">
+                    <label>Mettre à jour les Model</label>
+                    <div style="display:flex; gap:12px; align-items:flex-start; margin-top:6px;">
+                        <div style="flex:1">
+                            <label>Tissu (nuancier)</label><br>
+                            <input type="file" name="material_tissu" accept="image/*"><br>
+                            <textarea name="material_tissu_description" placeholder="Description (optionnel)"
+                                style="width:100%; margin-top:6px; height:60px;"></textarea>
+                        </div>
+                        <div style="flex:1">
+                            <label>Bois (nuancier)</label><br>
+                            <input type="file" name="material_bois" accept="image/*"><br>
+                            <textarea name="material_bois_description" placeholder="Description (optionnel)"
+                                style="width:100%; margin-top:6px; height:60px;"></textarea>
+                        </div>
+                    </div>
+                </div>
 
                 <div class="form-group">
                     <label for="edit_name">Nom du produit</label>
                     <input type="text" id="edit_name" name="name" required>
                 </div>
+
+                <div class="form-group">
+                    <label>Catégorie (optionnel)</label>
+                    <?php $cats_for_edit = $db->query("SELECT id, name FROM categories ORDER BY name")->fetchAll(PDO::FETCH_ASSOC); ?>
+                    <select name="category_id" id="edit_category_id">
+                        <option value="">Aucune</option>
+                        <?php foreach ($cats_for_edit as $ct): ?>
+                            <option value="<?= $ct['id'] ?>"><?= htmlspecialchars($ct['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>div>
 
                 <div class="form-group">
                     <label for="edit_description">Description</label>
@@ -843,19 +1305,39 @@ require 'backendadmin.php';
                 colorContainer.innerHTML = '';
                 addColorRow();
             }
+            // Reset product type and image inputs
+            const pt = document.getElementById('product_type'); if (pt) pt.value = 'made_to_order';
+            const pimg = document.getElementById('product_images'); if (pimg) {
+                pimg.value = '';
+                // ensure grid is initialized with the add tile
+                const grid = document.getElementById('add-images-grid'); if (grid) {
+                    grid.innerHTML = '';
+                    initImageGrid('product_images', 'add-images-grid');
+                }
+            }
         }
 
         function hideAddProductModal() {
             document.getElementById('addProductModal').style.display = 'none';
+            const inp = document.getElementById('product_images'); if (inp) { inp.value = ''; }
+            const grid = document.getElementById('add-images-grid'); if (grid) grid.innerHTML = '';
         }
 
         // Edit product modal functions
         function showEditProductModal(product, dimensions, colors) {
-            // Populate form fields with product data
-            document.getElementById('edit_product_id').value = product.id;
-            document.getElementById('edit_name').value = product.name;
-            document.getElementById('edit_description').value = product.description;
-            document.getElementById('edit_current_image_path').value = '';
+            // Populate form fields with product data (defensive: only set if element exists)
+            const pidEl = document.getElementById('edit_product_id'); if (pidEl && typeof product.id !== 'undefined') pidEl.value = product.id;
+            const nameEl = document.getElementById('edit_name'); if (nameEl && typeof product.name !== 'undefined') nameEl.value = product.name;
+            const descEl = document.getElementById('edit_description'); if (descEl && typeof product.description !== 'undefined') descEl.value = product.description;
+            // set product type
+            if (product.product_type) {
+                const et = document.getElementById('edit_product_type');
+                if (et) et.value = product.product_type;
+            }
+            const curImgEl = document.getElementById('edit_current_image_path'); if (curImgEl) curImgEl.value = '';
+
+            // set category if present
+            const editCatEl = document.getElementById('edit_category_id'); if (editCatEl && typeof product.category_id !== 'undefined') editCatEl.value = product.category_id || '';
 
             // Populate dimensions
             const container = document.getElementById('edit-dimensions-container');
@@ -870,6 +1352,58 @@ require 'backendadmin.php';
 
             // Populate colors
             populateEditColors(colors);
+
+            // Populate existing product images into the edit image grid
+            const imgContainer = document.getElementById('edit-product-images');
+            if (imgContainer) {
+                imgContainer.innerHTML = '';
+                if (product.images && product.images.length) {
+                    product.images.forEach(img => {
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'image-tile existing-image';
+                        wrapper.style.position = 'relative';
+
+                        const primaryBadge = '';
+
+                        wrapper.innerHTML = `
+                            <img src="../${img.image_path}" style="width:100%;height:100%;object-fit:cover;border:1px solid #ddd;border-radius:6px;">
+                            <input type="hidden" name="existing_product_images[]" value="${img.id}">
+                            <button type="button" class="btn btn-small btn-danger image-remove" style="position:absolute;right:6px;top:6px;" onclick="deleteProductImage(this, ${img.id})">&times;</button>
+                        `;
+                        imgContainer.appendChild(wrapper);
+                    });
+                }
+
+                // add the '+' tile so admin can add new images
+                const addTile = document.createElement('div');
+                addTile.className = 'image-tile image-add-tile';
+                addTile.innerHTML = '<div class="plus">+</div>';
+                addTile.addEventListener('click', () => document.getElementById('edit_product_images').click());
+                imgContainer.appendChild(addTile);
+
+                // wire up change handler for edit file input so selected new files show as previews
+                initImageGrid('edit_product_images', 'edit-product-images');
+
+                // populate material catalogs (unchanged)
+                const matContainer = document.getElementById('edit-material-catalogs');
+                if (matContainer) {
+                    matContainer.innerHTML = '';
+                    if (product.material_catalogs && product.material_catalogs.length) {
+                        product.material_catalogs.forEach(m => {
+                            const w = document.createElement('div');
+                            w.style.position = 'relative';
+                            w.style.display = 'inline-block';
+                            w.style.marginRight = '8px';
+                            w.innerHTML = `
+                                <img src="../${m.image_path}" style="width:80px;height:80px;object-fit:cover;border:1px solid #ddd;">
+                                <button type="button" class="btn btn-small btn-danger" style="position:absolute;right:0;top:0;" onclick="deleteMaterialCatalog(${m.id}, this)">&times;</button>
+                                <div style="position:absolute;left:0;bottom:0;background:rgba(0,0,0,0.6);color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">${m.material_type}</div>
+                            `;
+                            matContainer.appendChild(w);
+                        });
+                    }
+                }
+            }
 
             // Show modal
             document.getElementById('editProductModal').style.display = 'flex';
@@ -902,6 +1436,202 @@ require 'backendadmin.php';
 
             const editColors = document.getElementById('edit-colors-container');
             if (editColors) editColors.innerHTML = '';
+
+            const editInput = document.getElementById('edit_product_images'); if (editInput) editInput.value = '';
+            const editGrid = document.getElementById('edit-product-images'); if (editGrid) editGrid.innerHTML = '';
+        }
+
+        function deleteProductImage(btn, imageId) {
+            if (!confirm('Supprimer cette image ?')) return;
+            fetch('backendadmin.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'delete_product_image=1&image_id=' + encodeURIComponent(imageId)
+            }).then(res => res.json()).then(data => {
+                if (data && data.ok) {
+                    const wrapper = btn.closest('div');
+                    if (wrapper) wrapper.remove();
+                } else {
+                    alert('Erreur lors de la suppression de l\'image');
+                }
+            }).catch(err => {
+                console.error(err);
+                alert('Erreur réseau');
+            });
+        }
+
+        function deleteMaterialCatalog(id, btn) {
+            if (!confirm('Supprimer ce nuancier ?')) return;
+            fetch('backendadmin.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'delete_material_catalog=1&id=' + encodeURIComponent(id)
+            }).then(res => res.json()).then(data => {
+                if (data && data.ok) {
+                    const wrapper = btn.closest('div');
+                    if (wrapper) wrapper.remove();
+                } else {
+                    alert('Erreur lors de la suppression du nuancier');
+                }
+            }).catch(err => {
+                console.error(err);
+                alert('Erreur réseau');
+            });
+        }
+
+        // primary image selection removed: no persistent `is_primary` column in the schema. If you want to reintroduce this feature, add an `is_primary` column via a migration and restore the handler.
+
+        // Image grid helpers (add / edit) + dimension unlimited handling
+        function initImageGrid(inputId, gridId) {
+            const input = document.getElementById(inputId);
+            const grid = document.getElementById(gridId);
+            if (!input || !grid) return;
+            grid.innerHTML = '';
+            // add tile
+            const addTile = document.createElement('div');
+            addTile.className = 'image-tile image-add-tile';
+            addTile.innerHTML = '<div class="plus">+</div>';
+            addTile.addEventListener('click', () => input.click());
+            grid.appendChild(addTile);
+            // change handler
+            input.addEventListener('change', () => renderFilePreviews(input, grid));
+        }
+
+        function renderFilePreviews(input, grid) {
+            // remove previous new-file previews
+            Array.from(grid.querySelectorAll('.image-tile.new-file')).forEach(n => n.remove());
+            const files = input.files;
+            if (!files || !files.length) return;
+            const addTile = grid.querySelector('.image-add-tile');
+            Array.from(files).forEach((file, idx) => {
+                const url = URL.createObjectURL(file);
+                const tile = document.createElement('div');
+                tile.className = 'image-tile new-file';
+                tile.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;"> <button type="button" class="btn btn-small btn-danger image-remove" title="Retirer">×</button>`;
+                const removeBtn = tile.querySelector('.image-remove');
+                removeBtn.addEventListener('click', () => {
+                    removeFileFromInput(input, idx);
+                    tile.remove();
+                });
+                grid.insertBefore(tile, addTile);
+            });
+        }
+
+        function removeFileFromInput(input, index) {
+            const dt = new DataTransfer();
+            Array.from(input.files).forEach((f, i) => { if (i !== index) dt.items.add(f); });
+            input.files = dt.files;
+            input.dispatchEvent(new Event('change'));
+        }
+
+        function onDimensionUnlimitedToggle(checkbox) {
+            const row = checkbox.closest('.dimension-row');
+            if (!row) return;
+            const stockInput = row.querySelector('input[name="dim_stock[]"]');
+            const stockMaxInput = row.querySelector('input[name="dim_stock_max[]"]');
+            if (checkbox.checked) {
+                if (stockMaxInput && stockMaxInput.value) {
+                    if (stockInput) stockInput.value = stockMaxInput.value;
+                } else {
+                    if (stockInput) stockInput.value = 9999999;
+                }
+                if (stockInput) stockInput.disabled = true;
+                if (stockMaxInput) {
+                    stockMaxInput.addEventListener('input', function handler() {
+                        if (checkbox.checked) {
+                            if (stockInput) stockInput.value = stockMaxInput.value || 9999999;
+                        }
+                    });
+                }
+            } else {
+                if (stockInput) { stockInput.disabled = false; if (stockInput.value == '9999999') stockInput.value = ''; }
+            }
+        }
+
+        // Message view/delete helpers
+        function viewMessageCard(btn) {
+            const card = btn.closest('.message-card');
+            if (!card) return;
+            document.getElementById('msg_name').textContent = card.dataset.name || '';
+            document.getElementById('msg_email').textContent = card.dataset.email || '';
+            document.getElementById('msg_phone').textContent = card.dataset.phone || '';
+            document.getElementById('msg_date').textContent = card.dataset.date || '';
+            document.getElementById('msg_comment').textContent = card.dataset.comment || '';
+            document.getElementById('messageModal').style.display = 'flex';
+
+            // If message is unread, mark it as read immediately
+            if (typeof card.dataset.isRead !== 'undefined' && card.dataset.isRead === '0') {
+                fetch('backendadmin.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'mark_message_read=1&message_id=' + encodeURIComponent(card.dataset.id) + '&ajax=1'
+                }).then(res => res.json()).then(data => {
+                    if (data && data.ok) {
+                        const badge = card.querySelector('.badge-unread'); if (badge) badge.remove();
+                        const sb = document.querySelector('.sidebar .badge');
+                        if (sb) {
+                            const n = parseInt(sb.textContent || '0', 10) - 1;
+                            sb.textContent = n > 0 ? n : '';
+                        }
+                        card.dataset.isRead = '1';
+                    }
+                }).catch(err => {
+                    console.error('Failed to mark message read', err);
+                });
+            }
+        }
+
+        function hideMessageModal() {
+            const m = document.getElementById('messageModal');
+            if (m) m.style.display = 'none';
+        }
+
+        function deleteMessageCard(btn, id) {
+            if (!confirm('Supprimer ce message ?')) return;
+            fetch('backendadmin.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'delete_message=1&message_id=' + encodeURIComponent(id) + '&ajax=1'
+            }).then(res => res.json()).then(data => {
+                if (data && data.ok) {
+                    const card = btn.closest('.message-card');
+                    if (card) card.remove();
+                } else {
+                    alert('Erreur lors de la suppression');
+                }
+            }).catch(err => {
+                console.error(err);
+                alert('Erreur réseau');
+            });
+        }
+
+        function markMessageRead(btn, id) {
+            fetch('backendadmin.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'mark_message_read=1&message_id=' + encodeURIComponent(id) + '&ajax=1'
+            }).then(res => res.json()).then(data => {
+                if (data && data.ok) {
+                    const card = btn.closest('.message-card');
+                    if (card) {
+                        // remove unread badge
+                        const badge = card.querySelector('.badge-unread'); if (badge) badge.remove();
+                        // remove the mark button
+                        btn.remove();
+                        // update sidebar badge count
+                        const sb = document.querySelector('.sidebar .badge');
+                        if (sb) {
+                            const n = parseInt(sb.textContent || '0', 10) - 1;
+                            sb.textContent = n > 0 ? n : '';
+                        }
+                    }
+                } else {
+                    alert('Erreur lors de la modification');
+                }
+            }).catch(err => {
+                console.error(err);
+                alert('Erreur réseau');
+            });
         }
 
         function populateEditColors(colors) {
@@ -952,27 +1682,22 @@ require 'backendadmin.php';
             row.className = 'dimension-row';
             row.style.marginBottom = '10px';
 
-            // inner HTML : on ne crée PAS d'input file visible ici — on utilisera des vignettes cliquables
+            // inner HTML: simple dimension row (no images per dimension in new schema)
             row.innerHTML = `
-        <div style="display:flex; gap:10px; align-items:center;">
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
             <input type="number" name="width_cm[]" placeholder="Largeur (cm)" style="width:110px;" min="0">
             <input type="number" name="height_cm[]" placeholder="Hauteur (cm)" style="width:110px;" min="0">
+            <input type="number" name="depth_cm[]" placeholder="Profondeur (cm)" style="width:110px;" min="0">
             <input type="text" name="dim_label[]" placeholder="Label (ex: 120x70)" style="width:131px;">
             <input type="number" name="dim_price[]" placeholder="Prix (DA)" style="width:120px;" step="0.01" min="0">
+            <input type="number" name="dim_price_new[]" placeholder="Prix promo (DA)" style="width:120px;" step="0.01" min="0">
+            <input type="number" name="dim_promo_percent[]" placeholder="% Promo" style="width:80px;" min="0" max="100">
             <input type="number" name="dim_stock[]" placeholder="Stock" style="width:90px;" min="0">
-
-
+            <input type="number" name="dim_stock_max[]" placeholder="Stock max" style="width:90px;" min="0">
+            <label style="display:flex;align-items:center;gap:6px;margin-left:6px;"><input type="checkbox" name="dim_unlimited[]" value="1" onchange="onDimensionUnlimitedToggle(this)"> Illimité</label>
+            <label style="display:flex;align-items:center;gap:6px;margin-left:6px;">Par défaut <input type="checkbox" name="dim_is_default[]" value="1" onchange="ensureSingleDefault(this)"></label>
             <button type="button" class="btn btn-small btn-danger" onclick="removeDimensionRow(this)"><i class="fas fa-trash"></i></button>
         </div>
-                    <div class="images-wrapper" style="display:flex; gap:8px; align-items:center;">
-                <!-- container pour inputs cachés (pour l'envoi du form) -->
-                <div class="images-container" data-index="${index}" data-name="dimension_images"></div>
-
-                <!-- bouton + Img : crée une vignette cliquable + input caché -->
-                <div class="image-preview-square empty" tabindex="0" role="button" onclick="appendImageInput(this)">+</div>
-
-                <!-- les aperçus (vignettes) seront créés automatiquement par appendImageInput -->
-            </div>
     `;
             container.appendChild(row);
         }
@@ -981,6 +1706,14 @@ require 'backendadmin.php';
         function removeDimensionRow(btn) {
             const row = btn.closest('.dimension-row');
             if (row) row.remove();
+        }
+
+        function ensureSingleDefault(checkbox) {
+            if (!checkbox || !checkbox.checked) return;
+            // Uncheck all other default checkboxes in the same modal
+            const container = checkbox.closest('.modal') || document;
+            const others = container.querySelectorAll('input[name="dim_is_default[]"]');
+            others.forEach(cb => { if (cb !== checkbox) cb.checked = false; });
         }
 
         function addEditDimensionRow(dimData = null) {
@@ -995,26 +1728,39 @@ require 'backendadmin.php';
             const stock = dimData ? (dimData.stock || '') : '';
             const index = dimensionIndex++;
             row.innerHTML = `
-    <div style="display:flex; gap:10px; align-items:center;">
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
       <input type="number" name="width_cm[]" placeholder="Largeur (cm)" style="width:110px;" min="0" value="${width}">
       <input type="number" name="height_cm[]" placeholder="Hauteur (cm)" style="width:110px;" min="0" value="${height}">
+      <input type="number" name="depth_cm[]" placeholder="Profondeur (cm)" style="width:110px;" min="0" value="${dimData && dimData.depth_cm ? dimData.depth_cm : ''}">
       <input type="text" name="dim_label[]" placeholder="Label (ex: 120x70)" style="width:131px;" value="${label}">
       <input type="number" name="dim_price[]" placeholder="Prix (DA)" style="width:120px;" step="0.01" min="0" value="${price}">
+      <input type="number" name="dim_price_new[]" placeholder="Prix promo (DA)" style="width:120px;" step="0.01" min="0" value="${dimData && dimData.price_new ? dimData.price_new : ''}">
+      <input type="number" name="dim_promo_percent[]" placeholder="% Promo" style="width:80px;" min="0" max="100" value="${dimData && dimData.promo_percent ? dimData.promo_percent : ''}">
       <input type="number" name="dim_stock[]" placeholder="Stock" style="width:110px;" min="0" value="${stock}">
-
+      <input type="number" name="dim_stock_max[]" placeholder="Stock max" style="width:90px;" min="0" value="${dimData && dimData.stock_max ? dimData.stock_max : ''}">
+      <label style="display:flex;align-items:center;gap:6px;margin-left:6px;"><input type="checkbox" name="dim_unlimited[]" value="1" ${(dimData && ((dimData.stock_max && (dimData.stock === dimData.stock_max)))) ? 'checked' : ''} onchange="onDimensionUnlimitedToggle(this)"> Illimité</label>
+      <label style="display:flex;align-items:center;gap:6px;margin-left:6px;">Par défaut <input type="checkbox" name="dim_is_default[]" value="1" ${dimData && dimData.is_default ? 'checked' : ''} onchange="ensureSingleDefault(this)"></label>
       <button type="button" class="btn btn-small btn-danger" onclick="removeDimensionRow(this)"><i class="fas fa-trash"></i></button>
-    </div>
-
-    <div class="images-wrapper" style="display:flex; gap:8px; align-items:center;">
-      <div class="images-container" data-index="${index}" data-name="dimension_images"></div>
-
-      <!-- main + preview square (clicking it creates a NEW file input and preview) -->
-      <div class="image-preview-square empty" tabindex="0" role="button" onclick="appendImageInput(this)">+</div>
-
-      <!-- previews area will be inserted here by code -->
     </div>
   `;
             container.appendChild(row);
+
+            // wire up stock_max input to reflect unlimited checkbox when applicable
+            (function wireStockHandlers() {
+                const chk = row.querySelector('input[name="dim_unlimited[]"]');
+                const stockInput = row.querySelector('input[name="dim_stock[]"]');
+                const stockMaxInput = row.querySelector('input[name="dim_stock_max[]"]');
+                if (chk && stockInput && stockMaxInput) {
+                    // initial state
+                    if (chk.checked) {
+                        stockInput.disabled = true;
+                        stockInput.value = stockMaxInput.value || 9999999;
+                    }
+                    stockMaxInput.addEventListener('input', () => {
+                        if (chk.checked) stockInput.value = stockMaxInput.value || 9999999;
+                    });
+                }
+            })();
 
             // If dimension has existing images, show them as thumbnails (and create hidden markers)
             if (dimData && Array.isArray(dimData.images) && dimData.images.length) {
@@ -1358,6 +2104,59 @@ require 'backendadmin.php';
             } else if (window.location.hash === '#archives') {
                 showTab('archives');
             }
+
+            // AJAX upload helper: upload new images from edit modal without full form submit
+            const editInput = document.getElementById('edit_product_images');
+            if (editInput) {
+                editInput.addEventListener('change', function () {
+                    const files = editInput.files;
+                    const pid = document.getElementById('edit_product_id').value;
+                    if (!pid) return;
+                    Array.from(files).forEach(file => {
+                        if (!file.type.startsWith('image/')) return;
+                        const fd = new FormData();
+                        fd.append('upload_product_image', 1);
+                        fd.append('product_id', pid);
+                        fd.append('image', file);
+                        fetch('backendadmin.php', { method: 'POST', body: fd }).then(res => res.json()).then(data => {
+                            if (data && data.ok) {
+                                const container = document.getElementById('edit-product-images');
+                                if (!container) return;
+                                const wrapper = document.createElement('div');
+                                wrapper.style.position = 'relative';
+                                wrapper.style.display = 'inline-block';
+                                wrapper.style.marginRight = '8px';
+                                wrapper.innerHTML = `
+                                    <img src="../${data.path}" style="width:80px;height:80px;object-fit:cover;border:1px solid #ddd;">
+                                    <input type="hidden" name="existing_product_images[]" value="${data.id}">
+                                    <button type="button" class="btn btn-small btn-danger" style="position:absolute;right:0;top:0;" onclick="deleteProductImage(this, ${data.id})">&times;</button>
+                                `;
+                                container.appendChild(wrapper);
+                            } else {
+                                alert('Erreur lors du téléversement de l\'image');
+                            }
+                        }).catch(err => { console.error(err); alert('Erreur réseau'); });
+                    });
+                    editInput.value = '';
+                });
+            }
+
+            // Submenu toggle behaviour (click and keyboard accessible)
+            document.querySelectorAll('.sidebar .has-sub').forEach(el => {
+                el.addEventListener('click', function (e) {
+                    // ignore clicks on actual submenu links
+                    if (e.target.closest('.sidebar-sublink')) return;
+                    this.classList.toggle('open');
+                    this.setAttribute('aria-expanded', this.classList.contains('open') ? 'true' : 'false');
+                });
+                el.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        this.click();
+                    }
+                });
+            });
+
             // Show success notification if product was added
             <?php if (isset($_SESSION['product_added_success'])): ?>
                 // The success message will be displayed by the existing PHP alert system
@@ -1383,7 +2182,7 @@ require 'backendadmin.php';
             const wrapper = previews.closest('.images-wrapper');
             const container = wrapper.querySelector('.images-container');
             const idx = container ? container.dataset.index : 0;
-            const baseName = container ? (container.getAttribute('data-name') || 'dimension_images') : 'dimension_images';
+            const baseName = container ? (container.getAttribute('data-name') || 'product_images') : 'product_images';
 
             // preview element
             const preview = document.createElement('div');
@@ -1484,6 +2283,47 @@ require 'backendadmin.php';
 
             return preview;
         }
+
+        // Order status AJAX handlers (init at end)
+        (function initOrderStatusAjax() {
+            // lightweight notification helper if not present
+            if (typeof window.showNotification === 'undefined') {
+                window.showNotification = function (message, type = 'success') {
+                    const div = document.createElement('div');
+                    div.className = 'top-notif' + (type === 'error' ? ' error' : '');
+                    div.textContent = message;
+                    document.body.appendChild(div);
+                    setTimeout(() => { try { div.remove(); } catch (e) { } }, 3000);
+                };
+            }
+
+            document.querySelectorAll('.status-form').forEach(form => {
+                form.addEventListener('submit', function (e) { e.preventDefault(); });
+                const sel = form.querySelector('select[name="status"]');
+                if (!sel) return;
+                sel.addEventListener('change', function () {
+                    const orderId = form.querySelector('input[name="order_id"]').value;
+                    const status = sel.value;
+                    sel.disabled = true;
+                    fetch('backendadmin.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'update_order_status=1&order_id=' + encodeURIComponent(orderId) + '&status=' + encodeURIComponent(status) + '&ajax=1'
+                    }).then(res => res.json()).then(data => {
+                        sel.disabled = false;
+                        if (data && data.ok) {
+                            window.showNotification('Statut de commande mis à jour', 'success');
+                        } else {
+                            window.showNotification((data && data.error) ? data.error : 'Erreur lors de la mise à jour', 'error');
+                        }
+                    }).catch(err => {
+                        sel.disabled = false;
+                        console.error(err);
+                        window.showNotification('Erreur réseau lors de la mise à jour', 'error');
+                    });
+                });
+            });
+        })();
 
     </script>
 </body>

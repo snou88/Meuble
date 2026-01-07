@@ -166,7 +166,7 @@
                 // Final SQL
                 $sql = "SELECT p.*, 
     (SELECT MIN(pd.price) FROM product_dimensions pd WHERE pd.product_id = p.id) AS min_price,
-    (SELECT di.image_path FROM dimension_images di JOIN product_dimensions pd ON di.dimension_id = pd.id WHERE pd.product_id = p.id ORDER BY di.is_primary DESC, di.id LIMIT 1) AS primary_image
+    (SELECT pi.image_path FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.id LIMIT 1) AS primary_image
     FROM products p $whereSql ORDER BY $orderBy";
 
                 $stmt = $db->prepare($sql);
@@ -374,6 +374,13 @@
                         <li><a href="#">Garantie</a></li>
                         <li><a href="#">FAQ</a></li>
                         <li><a href="#">Mentions légales</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4 class="footer-title">Contact</h4>
+                    <ul class="footer-links">
+                        <li><a href="#accueil">05 55 55 55 55</a></li>
+                        <li><a href="#produits"></a>amameuble@gmail.com</li>
                     </ul>
                 </div>
             </div>

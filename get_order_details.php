@@ -20,7 +20,7 @@ try {
     // Fetch items with joins
     $itStmt = $db->prepare(
         'SELECT oi.*, p.name AS product_name, pd.label AS size, oi.unit_price AS product_price,
-            (SELECT di.image_path FROM dimension_images di WHERE di.dimension_id = oi.dimension_id ORDER BY di.is_primary DESC, di.id LIMIT 1) AS product_image
+            (SELECT pi.image_path FROM product_images pi WHERE pi.product_id = oi.product_id ORDER BY pi.id LIMIT 1) AS product_image
          FROM order_items oi
          LEFT JOIN products p ON p.id = oi.product_id
          LEFT JOIN product_dimensions pd ON pd.id = oi.dimension_id
