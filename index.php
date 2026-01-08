@@ -106,63 +106,44 @@
                 <p class="section-subtitle">Explorez nos univers dédiés à chaque pièce de votre maison</p>
             </div>
 
-            <div class="categories-grid">
-                <a href="produits.php">
-                    <div class="category-card" data-aos="fade-up">
-                        <div class="category-image">
-                            <img src="https://images.pexels.com/photos/1350789/pexels-photo-1350789.jpeg?auto=compress&cs=tinysrgb&w=800"
-                                alt="Salon">
-                            <div class="category-overlay">
-                                <h3>Salon</h3>
-                                <p>Canapés & Tables basses</p>
-                                <span class="category-link">Explorer →</span>
-                            </div>
-                        </div>
-                    </div>
-                </a>
+            <?php
+            require_once __DIR__ . '/config/database.php';
+            try {
+                $db = getDBConnection();
+                $catStmt = $db->query("SELECT id, name, slug, image_path, description FROM categories ORDER BY name");
+                $categories = $catStmt->fetchAll(PDO::FETCH_ASSOC);
+            } catch (Exception $e) {
+                $categories = [];
+            }
 
-                <a href="produits.php">
-                    <div class="category-card" data-aos="fade-up" data-aos-delay="100">
-                        <div class="category-image">
-                            <img src="https://images.pexels.com/photos/1743231/pexels-photo-1743231.jpeg?auto=compress&cs=tinysrgb&w=800"
-                                alt="Chambre">
-                            <div class="category-overlay">
-                                <h3>Chambre</h3>
-                                <p>Lits & Dressings</p>
-                                <span class="category-link">Explorer →</span>
+            if (empty($categories)) : ?>
+                <div class="categories-grid">
+                    <p>Aucune catégorie disponible pour le moment.</p>
+                </div>
+            <?php else: ?>
+                <div class="categories-grid">
+                    <?php foreach ($categories as $i => $cat):
+                        $img = !empty($cat['image_path']) ? $cat['image_path'] : 'assets/images/default_category.jpg';
+                        $name = htmlspecialchars($cat['name']);
+                        $desc = !empty($cat['description']) ? htmlspecialchars($cat['description']) : '';
+                        $link = 'produits.php?category_id=' . (int) $cat['id'];
+                        $delay = ($i % 4) * 100;
+                    ?>
+                        <a href="<?= htmlspecialchars($link) ?>">
+                            <div class="category-card" data-aos="fade-up" data-aos-delay="<?= $delay ?>">
+                                <div class="category-image">
+                                    <img src="<?= htmlspecialchars($img) ?>" alt="<?= $name ?>">
+                                    <div class="category-overlay">
+                                        <h3><?= $name ?></h3>
+                                        <p><?= $desc ?></p>
+                                        <span class="category-link">Explorer →</span>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                </a>
-
-                <a href="produits.php">
-                    <div class="category-card" data-aos="fade-up" data-aos-delay="200">
-                        <div class="category-image">
-                            <img src="https://images.pexels.com/photos/1457842/pexels-photo-1457842.jpeg?auto=compress&cs=tinysrgb&w=800"
-                                alt="Salle à manger">
-                            <div class="category-overlay">
-                                <h3>Salle à manger</h3>
-                                <p>Tables & Chaises</p>
-                                <span class="category-link">Explorer →</span>
-                            </div>
-                        </div>
-                    </div>
-                </a>
-
-                <a href="produits.php">
-                    <div class="category-card" data-aos="fade-up" data-aos-delay="300">
-                        <div class="category-image">
-                            <img src="https://images.pexels.com/photos/667838/pexels-photo-667838.jpeg?auto=compress&cs=tinysrgb&w=800"
-                                alt="Bureau">
-                            <div class="category-overlay">
-                                <h3>Bureau</h3>
-                                <p>Bureaux & Rangements</p>
-                                <span class="category-link">Explorer →</span>
-                            </div>
-                        </div>
-                    </div>
-                </a>
-            </div>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
         </div>
     </section>
 
