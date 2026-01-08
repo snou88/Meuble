@@ -258,7 +258,6 @@ if (isset($_POST['add_product_v2'])) {
         $price_news = $_POST['dim_price_new'] ?? [];
         $promos = $_POST['dim_promo_percent'] ?? [];
         $stocks = $_POST['dim_stock'] ?? [];
-        $stock_maxs = $_POST['dim_stock_max'] ?? [];
         $is_defaults = $_POST['dim_is_default'] ?? [];
 
         $default_dimension_id = null;
@@ -271,11 +270,11 @@ if (isset($_POST['add_product_v2'])) {
             $price = isset($prices[$i]) ? (float)$prices[$i] : 0;
             $price_new = isset($price_news[$i]) && $price_news[$i] !== '' ? (float)$price_news[$i] : null;
             $promo = !empty($promos[$i]) ? (int)$promos[$i] : 0;
-            $stock_max = isset($stock_maxs[$i]) && $stock_maxs[$i] !== '' ? (int)$stock_maxs[$i] : null;
             $dim_unlimiteds = $_POST['dim_unlimited'] ?? [];
             $unlimited = isset($dim_unlimiteds[$i]) && $dim_unlimiteds[$i] == '1';
             if ($unlimited) {
-                $stock = $stock_max !== null ? $stock_max : 9999999;
+                // Unlimited stock represented by a large sentinel value
+                $stock = 9999999;
             } else {
                 $stock = isset($stocks[$i]) && $stocks[$i] !== '' ? (int)$stocks[$i] : null;
             }
@@ -286,8 +285,8 @@ if (isset($_POST['add_product_v2'])) {
             }
 
             $is_default = !empty($is_defaults[$i]) ? 1 : 0;
-            $pdo->prepare("INSERT INTO product_dimensions (product_id, width_cm, height_cm, depth_cm, label, price, price_new, promo_percent, stock, stock_max, is_default) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-                ->execute([$product_id, $width, $height, $depth, $label, $price, $price_new, $promo, $stock, $stock_max, $is_default]);
+            $pdo->prepare("INSERT INTO product_dimensions (product_id, width_cm, height_cm, depth_cm, label, price, price_new, promo_percent, stock, is_default) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+                ->execute([$product_id, $width, $height, $depth, $label, $price, $price_new, $promo, $stock, $is_default]);
             $dimensions_inserted++;
 
             if ($is_default) {
@@ -400,7 +399,6 @@ if (isset($_POST['update_product_v2'])) {
         $price_news = $_POST['dim_price_new'] ?? [];
         $promos = $_POST['dim_promo_percent'] ?? [];
         $stocks = $_POST['dim_stock'] ?? [];
-        $stock_maxs = $_POST['dim_stock_max'] ?? [];
         $is_defaults = $_POST['dim_is_default'] ?? [];
 
         $default_dimension_id = null;
@@ -413,11 +411,10 @@ if (isset($_POST['update_product_v2'])) {
             $price = isset($prices[$i]) ? (float)$prices[$i] : 0;
             $price_new = isset($price_news[$i]) && $price_news[$i] !== '' ? (float)$price_news[$i] : null;
             $promo = !empty($promos[$i]) ? (int)$promos[$i] : 0;
-            $stock_max = isset($stock_maxs[$i]) && $stock_maxs[$i] !== '' ? (int)$stock_maxs[$i] : null;
             $dim_unlimiteds = $_POST['dim_unlimited'] ?? [];
             $unlimited = isset($dim_unlimiteds[$i]) && $dim_unlimiteds[$i] == '1';
             if ($unlimited) {
-                $stock = $stock_max !== null ? $stock_max : 9999999;
+                $stock = 9999999;
             } else {
                 $stock = isset($stocks[$i]) && $stocks[$i] !== '' ? (int)$stocks[$i] : null;
             }
@@ -429,8 +426,8 @@ if (isset($_POST['update_product_v2'])) {
 
             $is_default = !empty($is_defaults[$i]) ? 1 : 0;
 
-            $pdo->prepare("INSERT INTO product_dimensions (product_id, width_cm, height_cm, depth_cm, label, price, price_new, promo_percent, stock, stock_max, is_default) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-                ->execute([$product_id, $width, $height, $depth, $label, $price, $price_new, $promo, $stock, $stock_max, $is_default]);
+            $pdo->prepare("INSERT INTO product_dimensions (product_id, width_cm, height_cm, depth_cm, label, price, price_new, promo_percent, stock, is_default) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+                ->execute([$product_id, $width, $height, $depth, $label, $price, $price_new, $promo, $stock, $is_default]);
 
             if ($is_default) {
                 $default_dimension_id = $pdo->lastInsertId();

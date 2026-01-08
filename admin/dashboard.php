@@ -1111,9 +1111,11 @@ require 'backendadmin.php';
                         alert('Au moins une dimension (avec un label) est requise.');
                         return false;
                     }
-                    // ensure at least one image selected
-                    const imgInput = document.getElementById('product_images');
-                    if (!imgInput || (!imgInput.files || imgInput.files.length === 0)) {
+                    // ensure at least one image selected (supports multiple hidden inputs)
+                    const imgInputs = Array.from(document.querySelectorAll('input[name="product_images[]"]'));
+                    let hasImage = false;
+                    imgInputs.forEach(i => { if (i.files && i.files.length) hasImage = true; });
+                    if (!hasImage) {
                         e.preventDefault();
                         alert('Au moins une image de produit est requise.');
                         return false;
@@ -1129,8 +1131,10 @@ require 'backendadmin.php';
                     }
                     // ensure image exists (either existing grid or new upload)
                     const existing = document.querySelectorAll('#edit-product-images .image-tile:not(.image-add-tile)');
-                    const imgInput = document.getElementById('edit_product_images');
-                    if ((existing.length === 0) && (!imgInput || !imgInput.files || imgInput.files.length === 0)) {
+                    const editInputs = Array.from(document.querySelectorAll('input[name="product_images[]"], input[name="edit_product_images[]"]'));
+                    let hasEditImage = false;
+                    editInputs.forEach(i => { if (i.files && i.files.length) hasEditImage = true; });
+                    if ((existing.length === 0) && (!hasEditImage)) {
                         e.preventDefault();
                         alert('Au moins une image de produit est requise.');
                         return false;
@@ -1321,6 +1325,11 @@ require 'backendadmin.php';
             document.getElementById('addProductModal').style.display = 'none';
             const inp = document.getElementById('product_images'); if (inp) { inp.value = ''; }
             const grid = document.getElementById('add-images-grid'); if (grid) grid.innerHTML = '';
+            // remove any dynamically created hidden inputs for images
+            const addForm = document.getElementById('add_product_form');
+            if (addForm) {
+                Array.from(addForm.querySelectorAll('input[name="product_images[]"]')).forEach(i => i.remove());
+            }
         }
 
         // Edit product modal functions
@@ -1439,6 +1448,11 @@ require 'backendadmin.php';
 
             const editInput = document.getElementById('edit_product_images'); if (editInput) editInput.value = '';
             const editGrid = document.getElementById('edit-product-images'); if (editGrid) editGrid.innerHTML = '';
+            // remove any dynamically created hidden inputs for edit images
+            const editForm = document.getElementById('edit_product_form');
+            if (editForm) {
+                Array.from(editForm.querySelectorAll('input[name="edit_product_images[]"], input[name="product_images[]"]')).forEach(i => i.remove());
+            }
         }
 
         function deleteProductImage(btn, imageId) {
@@ -1482,19 +1496,66 @@ require 'backendadmin.php';
         // primary image selection removed: no persistent `is_primary` column in the schema. If you want to reintroduce this feature, add an `is_primary` column via a migration and restore the handler.
 
         // Image grid helpers (add / edit) + dimension unlimited handling
+        // New behavior: each click on the + tile creates a new hidden file input so
+        // users can pick one image at a time. Each selected image keeps its own
+        // input (name ending with []) so it will be submitted with the form. The
+        // + tile remains available for further selections.
         function initImageGrid(inputId, gridId) {
-            const input = document.getElementById(inputId);
+            const original = document.getElementById(inputId); // may exist in HTML
             const grid = document.getElementById(gridId);
-            if (!input || !grid) return;
+            if (!grid) return;
+            // clear grid and recreate add tile
             grid.innerHTML = '';
-            // add tile
             const addTile = document.createElement('div');
             addTile.className = 'image-tile image-add-tile';
             addTile.innerHTML = '<div class="plus">+</div>';
-            addTile.addEventListener('click', () => input.click());
             grid.appendChild(addTile);
-            // change handler
-            input.addEventListener('change', () => renderFilePreviews(input, grid));
+
+            addTile.addEventListener('click', () => {
+                // create a new hidden file input for a single image
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.accept = 'image/*';
+                // use the original input's name if available, otherwise fallback
+                const baseName = (original && original.name) ? original.name : (inputId + '[]');
+                // ensure name ends with [] so multiple inputs are submitted as an array
+                fileInput.name = baseName.endsWith('[]') ? baseName : baseName + '[]';
+                fileInput.style.display = 'none';
+
+                // when a file is selected, create a preview tile and keep the input in DOM
+                fileInput.addEventListener('change', () => {
+                    if (!fileInput.files || fileInput.files.length === 0) {
+                        fileInput.remove();
+                        return;
+                    }
+                    const file = fileInput.files[0];
+                    const url = URL.createObjectURL(file);
+                    const tile = document.createElement('div');
+                    tile.className = 'image-tile new-file';
+                    tile.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;"> <button type="button" class="btn btn-small btn-danger image-remove" title="Retirer">×</button>`;
+                    const removeBtn = tile.querySelector('.image-remove');
+                    removeBtn.addEventListener('click', () => {
+                        // remove the associated input so it won't be submitted
+                        fileInput.remove();
+                        tile.remove();
+                    });
+                    grid.insertBefore(tile, addTile);
+                });
+
+                // append input to the closest form so it's submitted, otherwise to grid
+                const form = original ? original.closest('form') : grid.closest('form');
+                if (form) form.appendChild(fileInput); else grid.appendChild(fileInput);
+
+                // open file dialog
+                fileInput.click();
+            });
+
+            // keep original input hidden and clear its value to avoid duplicates
+            if (original) {
+                try { original.removeAttribute('multiple'); } catch (e) {}
+                original.value = '';
+                original.style.display = 'none';
+            }
         }
 
         function renderFilePreviews(input, grid) {
@@ -1528,23 +1589,16 @@ require 'backendadmin.php';
             const row = checkbox.closest('.dimension-row');
             if (!row) return;
             const stockInput = row.querySelector('input[name="dim_stock[]"]');
-            const stockMaxInput = row.querySelector('input[name="dim_stock_max[]"]');
             if (checkbox.checked) {
-                if (stockMaxInput && stockMaxInput.value) {
-                    if (stockInput) stockInput.value = stockMaxInput.value;
-                } else {
-                    if (stockInput) stockInput.value = 9999999;
-                }
-                if (stockInput) stockInput.disabled = true;
-                if (stockMaxInput) {
-                    stockMaxInput.addEventListener('input', function handler() {
-                        if (checkbox.checked) {
-                            if (stockInput) stockInput.value = stockMaxInput.value || 9999999;
-                        }
-                    });
+                if (stockInput) {
+                    stockInput.value = 9999999;
+                    stockInput.disabled = true;
                 }
             } else {
-                if (stockInput) { stockInput.disabled = false; if (stockInput.value == '9999999') stockInput.value = ''; }
+                if (stockInput) {
+                    stockInput.disabled = false;
+                    if (String(stockInput.value) === '9999999') stockInput.value = '';
+                }
             }
         }
 
@@ -1693,7 +1747,6 @@ require 'backendadmin.php';
             <input type="number" name="dim_price_new[]" placeholder="Prix promo (DA)" style="width:120px;" step="0.01" min="0">
             <input type="number" name="dim_promo_percent[]" placeholder="% Promo" style="width:80px;" min="0" max="100">
             <input type="number" name="dim_stock[]" placeholder="Stock" style="width:90px;" min="0">
-            <input type="number" name="dim_stock_max[]" placeholder="Stock max" style="width:90px;" min="0">
             <label style="display:flex;align-items:center;gap:6px;margin-left:6px;"><input type="checkbox" name="dim_unlimited[]" value="1" onchange="onDimensionUnlimitedToggle(this)"> Illimité</label>
             <label style="display:flex;align-items:center;gap:6px;margin-left:6px;">Par défaut <input type="checkbox" name="dim_is_default[]" value="1" onchange="ensureSingleDefault(this)"></label>
             <button type="button" class="btn btn-small btn-danger" onclick="removeDimensionRow(this)"><i class="fas fa-trash"></i></button>
@@ -1736,29 +1789,24 @@ require 'backendadmin.php';
       <input type="number" name="dim_price[]" placeholder="Prix (DA)" style="width:120px;" step="0.01" min="0" value="${price}">
       <input type="number" name="dim_price_new[]" placeholder="Prix promo (DA)" style="width:120px;" step="0.01" min="0" value="${dimData && dimData.price_new ? dimData.price_new : ''}">
       <input type="number" name="dim_promo_percent[]" placeholder="% Promo" style="width:80px;" min="0" max="100" value="${dimData && dimData.promo_percent ? dimData.promo_percent : ''}">
-      <input type="number" name="dim_stock[]" placeholder="Stock" style="width:110px;" min="0" value="${stock}">
-      <input type="number" name="dim_stock_max[]" placeholder="Stock max" style="width:90px;" min="0" value="${dimData && dimData.stock_max ? dimData.stock_max : ''}">
-      <label style="display:flex;align-items:center;gap:6px;margin-left:6px;"><input type="checkbox" name="dim_unlimited[]" value="1" ${(dimData && ((dimData.stock_max && (dimData.stock === dimData.stock_max)))) ? 'checked' : ''} onchange="onDimensionUnlimitedToggle(this)"> Illimité</label>
+    <input type="number" name="dim_stock[]" placeholder="Stock" style="width:110px;" min="0" value="${stock}">
+    <label style="display:flex;align-items:center;gap:6px;margin-left:6px;"><input type="checkbox" name="dim_unlimited[]" value="1" ${dimData && (dimData.stock == 9999999) ? 'checked' : ''} onchange="onDimensionUnlimitedToggle(this)"> Illimité</label>
       <label style="display:flex;align-items:center;gap:6px;margin-left:6px;">Par défaut <input type="checkbox" name="dim_is_default[]" value="1" ${dimData && dimData.is_default ? 'checked' : ''} onchange="ensureSingleDefault(this)"></label>
       <button type="button" class="btn btn-small btn-danger" onclick="removeDimensionRow(this)"><i class="fas fa-trash"></i></button>
     </div>
   `;
             container.appendChild(row);
 
-            // wire up stock_max input to reflect unlimited checkbox when applicable
+            // wire up unlimited checkbox to disable stock input when applicable
             (function wireStockHandlers() {
                 const chk = row.querySelector('input[name="dim_unlimited[]"]');
                 const stockInput = row.querySelector('input[name="dim_stock[]"]');
-                const stockMaxInput = row.querySelector('input[name="dim_stock_max[]"]');
-                if (chk && stockInput && stockMaxInput) {
+                if (chk && stockInput) {
                     // initial state
                     if (chk.checked) {
                         stockInput.disabled = true;
-                        stockInput.value = stockMaxInput.value || 9999999;
+                        stockInput.value = 9999999;
                     }
-                    stockMaxInput.addEventListener('input', () => {
-                        if (chk.checked) stockInput.value = stockMaxInput.value || 9999999;
-                    });
                 }
             })();
 
