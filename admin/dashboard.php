@@ -529,7 +529,8 @@ require 'backendadmin.php';
                         </button>
                     </div>
 
-                    <form method="get" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;margin-bottom:16px">
+                    <form method="get"
+                        style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;margin-bottom:16px">
                         <input type="hidden" name="page" value="products">
                         <select name="type" style="padding:8px;border:1px solid #ddd;border-radius:6px;">
                             <option value="">Tous les types</option>
@@ -550,7 +551,7 @@ require 'backendadmin.php';
                             style="padding:8px;border:1px solid #ddd;border-radius:6px; min-width:200px;">
                         <button type="submit" class="btn">Filtrer</button>
                         <a href="dashboard.php?page=products" class="btn btn-secondary">Réinitialiser</a>
-                    </form> 
+                    </form>
 
                     <div class="product-list">
                         <?php
@@ -687,6 +688,7 @@ require 'backendadmin.php';
                         <h2 class="card-title">Catégories de produits</h2>
                         <button class="btn"
                             onclick="document.getElementById('addProductCategoryModal').style.display='block'">Ajouter</button>
+
                     </div>
                     <div class="card-body">
                         <?php $prod_cats = $db->query("SELECT * FROM categories ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC); ?>
@@ -722,7 +724,7 @@ require 'backendadmin.php';
                                                 </td>
                                                 <td>
                                                     <button class="btn btn-small"
-                                                        onclick="openEditCategory(<?= $c['id'] ?>, <?= json_encode(htmlspecialchars($c['name'], ENT_QUOTES)) ?>, <?= json_encode(htmlspecialchars($c['description'], ENT_QUOTES)) ?>, <?= json_encode($c['image_path'] ?? '') ?>)"><i
+                                                        onclick='openEditCategory(<?= $c['id'] ?>, <?= json_encode($c['name']) ?>, <?= json_encode($c['description']) ?>, <?= json_encode($c['image_path'] ?? '') ?>)'><i
                                                             class="fas fa-edit"></i> Modifier</button>
                                                     <form method="post" style="display:inline;"
                                                         onsubmit="return deleteCategoryForm(this)">
