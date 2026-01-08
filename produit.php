@@ -116,15 +116,25 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
             const decreaseBtn = document.getElementById('decreaseQty');
             const addToCartBtn = document.getElementById('addToCart');
 
-            // Default dimension id and stock passed from server
-            const defaultDimensionId = <?= isset($dimensions[0]) ? (int) $dimensions[0]['id'] : 0 ?>;
-            const defaultDimensionStock = <?= isset($dimensions[0]) ? (int) $dimensions[0]['stock'] : 0 ?>;
-            const defaultDimensionIsUnlimited = <?= (isset($dimensions[0]) && ((int) $dimensions[0]['stock'] >= 9999999)) ? 'true' : 'false' ?>;
+            // Dimensions data from server
+            const dimensionsData = <?= json_encode($dimensions, JSON_UNESCAPED_UNICODE) ?>;
+            let currentDimensionId = dimensionsData.length ? parseInt(dimensionsData[0].id) : 0;
+
+            function getDimensionById(id) {
+                return dimensionsData.find(d => parseInt(d.id) === parseInt(id)) || null;
+            }
+
+            function getCurrentDimension() {
+                return getDimensionById(currentDimensionId) || null;
+            }
 
             function updateIncreaseState() {
                 const current = parseInt(qtySpan.textContent);
-                if (!defaultDimensionIsUnlimited && defaultDimensionStock > 0) {
-                    increaseBtn.disabled = current >= defaultDimensionStock;
+                const cd = getCurrentDimension();
+                const stock = cd ? parseInt(cd.stock) : 0;
+                const isUnlimited = cd ? (parseInt(cd.stock) >= 9999999) : false;
+                if (!isUnlimited && stock > 0) {
+                    increaseBtn.disabled = current >= stock;
                 } else {
                     increaseBtn.disabled = false;
                 }
@@ -132,7 +142,10 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
 
             increaseBtn.addEventListener('click', () => {
                 let v = parseInt(qtySpan.textContent);
-                if (!defaultDimensionIsUnlimited && defaultDimensionStock > 0 && v >= defaultDimensionStock) return;
+                const cd = getCurrentDimension();
+                const stock = cd ? parseInt(cd.stock) : 0;
+                const isUnlimited = cd ? (parseInt(cd.stock) >= 9999999) : false;
+                if (!isUnlimited && stock > 0 && v >= stock) return;
                 qtySpan.textContent = v + 1;
                 updateIncreaseState();
             });
@@ -156,6 +169,67 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
             }
             setupColorGroup('#fabricColorOptions');
             setupColorGroup('#woodColorOptions');
+
+            // Dimension UI: the blocks are informational. When multiple dimensions exist the
+            // dropdown controls selection; blocks are shown only for the currently selected dimension.
+            const dimensionBlocks = Array.from(document.querySelectorAll('.dimension-info'));
+            function showOnlySelectedBlock(id) {
+                dimensionBlocks.forEach(b => {
+                    if (parseInt(b.getAttribute('data-dimension-id')) === parseInt(id)) {
+                        b.style.display = '';
+                        b.classList.add('active');
+                    } else {
+                        // hide informational blocks when more than one dimension
+                        if (dimensionBlocks.length > 1) b.style.display = 'none';
+                        b.classList.remove('active');
+                    }
+                });
+            }
+
+            // Select change handling
+            const dimensionSelect = document.getElementById('dimensionSelect');
+            if (dimensionSelect) {
+                dimensionSelect.addEventListener('change', function () {
+                    const val = parseInt(this.value);
+                    if (!val) return;
+                    currentDimensionId = val;
+                    showOnlySelectedBlock(currentDimensionId);
+                    const hidden = document.getElementById('default_dimension_id');
+                    if (hidden) hidden.value = currentDimensionId;
+                    syncPriceAndStock();
+                });
+            }
+
+            function syncPriceAndStock() {
+                const cd = getCurrentDimension();
+                const priceEl = document.getElementById('currentPrice');
+                const oldEl = document.getElementById('oldPrice');
+                const promoEl = document.getElementById('promoPercent');
+                if (!cd) return;
+                const price = parseFloat(cd.price) || 0;
+                const priceNew = (cd.price_new !== null && cd.price_new !== '') ? parseFloat(cd.price_new) : null;
+                const promo = cd.promo_percent ? parseInt(cd.promo_percent) : 0;
+                if (priceNew !== null) {
+                    oldEl.style.display = '';
+                    oldEl.textContent = Number(price).toLocaleString('fr-FR', {maximumFractionDigits:0}) + ' DA';
+                    if (promo) { promoEl.style.display = ''; promoEl.textContent = '-' + promo + '%'; }
+                    else { promoEl.style.display = 'none'; promoEl.textContent = ''; }
+                    priceEl.textContent = Number(priceNew).toLocaleString('fr-FR', {maximumFractionDigits:0}) + ' DA';
+                } else {
+                    oldEl.style.display = 'none'; oldEl.textContent = '';
+                    promoEl.style.display = 'none'; promoEl.textContent = '';
+                    priceEl.textContent = Number(price).toLocaleString('fr-FR', {maximumFractionDigits:0}) + ' DA';
+                }
+                // reset quantity to 1 and update increase state
+                qtySpan.textContent = '1';
+                updateIncreaseState();
+            }
+
+            // init selection: ensure only the selected block is visible
+            if (dimensionsData.length) {
+                showOnlySelectedBlock(currentDimensionId);
+            }
+            syncPriceAndStock();
 
             // Material catalog thumbnails — click to open zoom modal
             document.querySelectorAll('.material-thumb').forEach(t => {
@@ -184,12 +258,15 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
 
                 const qty = parseInt(qtySpan.textContent);
                 // enforce stock on submit as well
-                if (!defaultDimensionIsUnlimited && defaultDimensionStock > 0 && qty > defaultDimensionStock) { alert('Quantité supérieure au stock disponible'); addToCartBtn.disabled = false; return; }
+                const cd = getCurrentDimension();
+                const stock = cd ? parseInt(cd.stock) : 0;
+                const isUnlimited = cd ? (parseInt(cd.stock) >= 9999999) : false;
+                if (!isUnlimited && stock > 0 && qty > stock) { alert('Quantité supérieure au stock disponible'); addToCartBtn.disabled = false; return; }
 
                 const payload = {
                     action: 'add',
                     productId: <?= (int) $productId ?>,
-                    dimensionId: defaultDimensionId || null,
+                    dimensionId: currentDimensionId || null,
                     fabric: selectedFabric ? selectedFabric.dataset.colorName : null,
                     wood: selectedWood ? selectedWood.dataset.woodName : null,
                     qty: qty
@@ -275,14 +352,35 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
 
             <div class="product-details">
                 <h1><?= htmlspecialchars($product['name']) ?></h1>
-                <p class="price" id="price"><?= number_format($minPrice, 2, ',', ' ') ?> DA</p>
+                <p class="price" id="price">
+                    <span id="oldPrice" style="color:#888;text-decoration:line-through;display:none;margin-right:8px;"></span>
+                    <span id="promoPercent" style="color:#c00;display:none;margin-right:8px;"></span>
+                    <span id="currentPrice" style="font-weight:600;"><?= number_format($minPrice, 2, ',', ' ') ?> DA</span>
+                </p>
 
                 <div class="option-group">
                     <h3>Dimensions</h3>
                     <div class="dimensions-info">
                         <?php if (!empty($dimensions)): ?>
+                            <?php if (count($dimensions) > 1): ?>
+                                <label for="dimensionSelect">Choisir la dimension</label>
+                                <select id="dimensionSelect" name="dimension" style="width:100%;margin:8px 0 12px 0;padding:8px;">
+                                    <?php foreach ($dimensions as $dopt): ?>
+                                        <option value="<?= (int)$dopt['id'] ?>" <?= ((int)$dopt['id'] === (int)($dimensions[0]['id'] ?? 0)) ? 'selected' : '' ?>><?= htmlspecialchars($dopt['label']) ?> — <?= number_format($dopt['price'], 0, ',', ' ') ?> DA<?= (isset($dopt['price_new']) && $dopt['price_new'] !== null && $dopt['price_new'] !== '') ? ' (Promo ' . ((int)$dopt['promo_percent']) . '%)' : '' ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            <?php endif; ?>
                             <?php foreach ($dimensions as $i => $d): ?>
-                                <div class="dimension-info" data-dimension-id="<?= (int) $d['id'] ?>">
+                                <?php
+                                    $hiddenStyle = (count($dimensions) > 1 && $i !== 0) ? 'display:none;' : '';
+                                ?>
+                                <div class="dimension-info"
+                                     style="<?= $hiddenStyle ?>"
+                                     data-dimension-id="<?= (int) $d['id'] ?>"
+                                     data-price="<?= htmlspecialchars($d['price']) ?>"
+                                     data-price-new="<?= isset($d['price_new']) ? htmlspecialchars($d['price_new']) : '' ?>"
+                                     data-promo="<?= isset($d['promo_percent']) ? (int) $d['promo_percent'] : 0 ?>"
+                                     data-stock="<?= (int) $d['stock'] ?>">
                                     <strong><?= htmlspecialchars($d['label']) ?></strong>
                                     <div class="dim-values">
                                         <span>Largeur: <?= (int) $d['width_cm'] ?> cm</span>

@@ -163,9 +163,12 @@
                 elseif ($sort === 'name-desc')
                     $orderBy = 'p.name DESC';
 
-                // Final SQL
+                // Final SQL - include min/max price and promote info from dimensions (first new-price if any)
                 $sql = "SELECT p.*, 
     (SELECT MIN(pd.price) FROM product_dimensions pd WHERE pd.product_id = p.id) AS min_price,
+    (SELECT MAX(pd.price) FROM product_dimensions pd WHERE pd.product_id = p.id) AS max_price,
+    (SELECT MIN(pd.price_new) FROM product_dimensions pd WHERE pd.product_id = p.id AND pd.price_new IS NOT NULL) AS min_price_new,
+    (SELECT pd.promo_percent FROM product_dimensions pd WHERE pd.product_id = p.id AND pd.price_new IS NOT NULL ORDER BY pd.price_new ASC LIMIT 1) AS promo_percent,
     (SELECT pi.image_path FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.id LIMIT 1) AS primary_image
     FROM products p $whereSql ORDER BY $orderBy";
 
@@ -282,7 +285,10 @@
                             <div class="products-grid">
                                 <?php foreach ($productsFromDb as $i => $prod):
                                     $img = !empty($prod['primary_image']) ? $prod['primary_image'] : 'assets/images/default_product.jpg';
-                                    $price = isset($prod['min_price']) ? number_format($prod['min_price'], 0, ',', ' ') : '0';
+                                    $minP = isset($prod['min_price']) ? (float) $prod['min_price'] : 0.0;
+                                    $maxP = isset($prod['max_price']) ? (float) $prod['max_price'] : $minP;
+                                    $minPriceNew = isset($prod['min_price_new']) && $prod['min_price_new'] !== null ? (float) $prod['min_price_new'] : null;
+                                    $promo = isset($prod['promo_percent']) ? (int) $prod['promo_percent'] : 0;
                                     $desc = !empty($prod['description']) ? htmlspecialchars($prod['description']) : '';
                                     $name = htmlspecialchars($prod['name']);
                                     $link = 'produit.php?id=' . (int) $prod['id'];
@@ -295,9 +301,18 @@
                                             <h3 class="product-name"><?= $name ?></h3>
                                             <p class="product-description"><?= $desc ?></p>
                                             <div class="product-footer">
-                                                <span class="product-price"><?= $price ?> DA</span>
-                                                <a href="<?= $link ?>"><button class="btn btn-secondary">Voir le
-                                                        produit</button></a>
+                                                <?php if ($minP == $maxP): ?>
+                                                    <?php if ($minPriceNew !== null): ?>
+                                                        <span class="product-price-old" style="color:#888;text-decoration:line-through;margin-right:8px;"><?= number_format($minP, 0, ',', ' ') ?> DA</span>
+                                                        <?php if ($promo): ?><span class="product-promo" style="color:#c00;margin-right:8px;">-<?= $promo ?>%</span><?php endif; ?>
+                                                        <span class="product-price-new" style="color:#c00;font-weight:600;"><?= number_format($minPriceNew, 0, ',', ' ') ?> DA</span>
+                                                    <?php else: ?>
+                                                        <span class="product-price"><?= number_format($minP, 0, ',', ' ') ?> DA</span>
+                                                    <?php endif; ?>
+                                                <?php else: ?>
+                                                    <span class="product-price-range"><?= number_format($minP, 0, ',', ' ') ?> - <?= number_format($maxP, 0, ',', ' ') ?> DA</span>
+                                                <?php endif; ?>
+                                                <a href="<?= $link ?>"><button class="btn btn-secondary">Voir le produit</button></a>
                                             </div>
                                         </div>
                                     </div>
