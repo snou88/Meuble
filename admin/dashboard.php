@@ -41,11 +41,22 @@ require 'backendadmin.php';
                     <i class="fas fa-shopping-cart"></i>
                     <span>Commandes</span>
                 </a>
-                <a href="dashboard.php?page=products"
-                    class="sidebar-link <?= ($page ?? '') === 'products' ? 'active' : '' ?>">
+                <div class="sidebar-link has-sub <?= ($page ?? '') === 'products' ? 'open' : '' ?>" role="button"
+                    tabindex="0" aria-expanded="<?= ($page ?? '') === 'products' ? 'true' : 'false' ?>">
                     <i class="fas fa-tshirt"></i>
-                    <span>Produits</span>
-                </a>
+                    <div style="display: block;">
+                        <span>Produits <i class="fas fa-chevron-down caret"></i></span>
+                        <div class="submenu">
+                            <a href="dashboard.php?page=products&filter=made_to_order"
+                                class="sidebar-sublink <?= ($page ?? '') === 'products' && ($_GET['filter'] ?? '') === 'made_to_order' ? 'active' : '' ?>">Sur
+                                Commande</a>
+                            <a href="dashboard.php?page=products&filter=available"
+                                class="sidebar-sublink <?= ($page ?? '') === 'products' && ($_GET['filter'] ?? '') === 'available' ? 'active' : '' ?>">Disponible</a>
+                            <a href="dashboard.php?page=products"
+                                class="sidebar-sublink <?= ($page ?? '') === 'products' && !isset($_GET['filter']) ? 'active' : '' ?>">Tous</a>
+                        </div>
+                    </div>
+                </div>
                 <a href="dashboard.php?page=categories"
                     class="sidebar-link <?= ($page ?? '') === 'categories' ? 'active' : '' ?>">
                     <i class="fas fa-list-alt"></i>
@@ -240,156 +251,6 @@ require 'backendadmin.php';
                 </div>
             </div>
 
-            <div id="orders" class="tab-content <?= $page === 'orders' ? 'active' : '' ?>">
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">Toutes les commandes</h2>
-                        <form method="GET" style="display: flex; gap: 10px; align-items: center;">
-                            <input type="hidden" name="page" value="orders">
-                            <input type="text" name="search_phone" placeholder="Rechercher par téléphone"
-                                value="<?= isset($_GET['search_phone']) ? htmlspecialchars($_GET['search_phone']) : '' ?>"
-                                style="padding: 6px; border-radius: 4px; border: 1px solid #ccc;">
-                            <button type="submit" class="btn btn-small btn-info"><i class="fas fa-search"></i>
-                                Rechercher</button>
-                            <?php if (!empty($_GET['search_phone'])): ?>
-                                <a href="dashboard.php?page=orders" class="btn btn-small btn-secondary">Réinitialiser</a>
-                            <?php endif; ?>
-                        </form>
-                    </div>
-                    <div style="overflow-x: auto;">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Client</th>
-                                    <th>Produit</th>
-                                    <th>Image</th>
-                                    <th>Prix</th>
-                                    <th>Date</th>
-                                    <th>Statut</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($all_orders as $order): ?>
-                                    <?php $items = getOrderItems($db, $order['id']); ?>
-                                    <tr>
-                                        <td><?= htmlspecialchars($order['customer_name']) ?></td>
-                                        <td>
-                                            <?php if ($items): ?>
-                                                <?php foreach ($items as $item): ?>
-                                                    <?= htmlspecialchars($item['product_name']) ?> (Taille:
-                                                    <?= htmlspecialchars($item['size']) ?>, Qte:
-                                                    <?= $item['quantity'] ?>             <?php if (!empty($item['color'])): ?>, Couleur: <span
-                                                            style="display: inline-block; width: 15px; height: 15px; background-color: <?= htmlspecialchars($item['color_code'] ?? $item['color']) ?>; border: 1px solid #ddd; border-radius: 50%; vertical-align: middle; margin-right: 5px;"></span><?= htmlspecialchars($item['color']) ?><?php endif; ?>)<br>
-                                                <?php endforeach; ?>
-                                            <?php else: ?>
-                                                <?= htmlspecialchars($order['product_name'] ?? '') ?> (Taille:
-                                                <?= htmlspecialchars($order['size'] ?? '') ?>, Qte:
-                                                <?= $order['quantity'] ?? 1 ?>         <?php if (!empty($order['color'])): ?>, Couleur:
-                                                    <span
-                                                        style="display: inline-block; width: 15px; height: 15px; background-color: <?= htmlspecialchars($order['color_code'] ?? $order['color']) ?>; border: 1px solid #ddd; border-radius: 50%; vertical-align: middle; margin-right: 5px;"></span><?= htmlspecialchars($order['color']) ?><?php endif; ?>)
-                                            <?php endif; ?>
-                                        </td>
-                                        <td>
-                                            <?php
-                                            // Prefer new schema column names, fall back to older ones if present
-                                            $firstImage = null;
-                                            if (!empty($items) && !empty($items[0]['image_path'])) {
-                                                $firstImage = $items[0]['image_path'];
-                                            } elseif (!empty($items) && !empty($items[0]['product_image'])) {
-                                                $firstImage = $items[0]['product_image'];
-                                            } elseif (!empty($order['image_path'])) {
-                                                $firstImage = $order['image_path'];
-                                            } elseif (!empty($order['product_image'])) {
-                                                $firstImage = $order['product_image'];
-                                            }
-                                            if (!empty($firstImage)): ?>
-                                                <img src="../<?= $firstImage ?>" class="product-image-thumb">
-                                            <?php else: ?>
-                                                <img src="../images/default_product.jpg" class="product-image-thumb">
-                                            <?php endif; ?>
-                                        </td>
-                                        <td class="price-details">
-                                            <?php if ($items): ?>
-                                                <?php $total = 0;
-                                                foreach ($items as $item) {
-                                                    $unit = $item['unit_price'] ?? $item['product_price'] ?? $item['price'] ?? 0;
-                                                    $qty = $item['quantity'] ?? 1;
-                                                    $total += $unit * $qty;
-                                                } ?>
-                                                <span class="label">Produit:</span> <?= number_format($total, 2, ',', ' ') ?>
-                                                DA<br>
-                                                <span class="label">Livraison:</span>
-                                                <?= number_format($order['delivery_price'] ?? 0, 2, ',', ' ') ?> DA<br>
-                                                <span class="label">Total:</span>
-                                                <?= number_format($order['total_price'] ?? ($total + ($order['delivery_price'] ?? 0)), 2, ',', ' ') ?>
-                                                DA
-                                            <?php else: ?>
-                                                <?php $singleProductPrice = ($order['product_price'] ?? null);
-                                                if ($singleProductPrice === null) {
-                                                    $singleProductPrice = ($order['total_price'] ?? 0) - ($order['delivery_price'] ?? 0);
-                                                }
-                                                ?>
-                                                <span class="label">Produit:</span>
-                                                <?= number_format($singleProductPrice, 2, ',', ' ') ?> DA<br>
-                                                <span class="label">Livraison:</span>
-                                                <?= number_format($order['delivery_price'] ?? 0, 2, ',', ' ') ?> DA<br>
-                                                <span class="label">Total:</span>
-                                                <?= number_format($order['total_price'] ?? ($singleProductPrice + ($order['delivery_price'] ?? 0)), 2, ',', ' ') ?>
-                                                DA
-                                            <?php endif; ?>
-                                        </td>
-                                        <td><?= date('d/m/Y H:i', strtotime($order['created_at'] ?? $order['order_date'] ?? 'now')) ?>
-                                        </td>
-                                        <td>
-                                            <form method="POST" class="status-form">
-                                                <input type="hidden" name="order_id" value="<?= $order['id'] ?>">
-                                                <select name="status" onchange="this.form.submit()">
-                                                    <option value="pending" <?= $order['status'] == 'pending' ? 'selected' : '' ?>>En attente</option>
-                                                    <option value="processing" <?= $order['status'] == 'processing' ? 'selected' : '' ?>>En traitement</option>
-                                                    <option value="shipped" <?= $order['status'] == 'shipped' ? 'selected' : '' ?>>Expédié</option>
-                                                    <option value="delivered" <?= $order['status'] == 'delivered' ? 'selected' : '' ?>>Livré</option>
-                                                    <option value="archived" <?= $order['status'] == 'archived' ? 'selected' : '' ?>>Archivé</option>
-                                                    <option value="canceled" <?= $order['status'] == 'canceled' ? 'selected' : '' ?>>Annulé</option>
-                                                </select>
-                                                <input type="hidden" name="update_order_status" value="1">
-                                            </form>
-                                        </td>
-                                        <td>
-                                            <div style="display: flex; gap: 5px;">
-                                                <button class="btn btn-small btn-info"
-                                                    onclick="showClientDetailsAjax(<?= $order['id'] ?>)">
-                                                    <i class="fas fa-info-circle"></i> Détails
-                                                </button>
-
-                                                <?php if (!empty($order['payment_receipt'])):
-                                                    $receiptPath = $order['payment_receipt'];
-                                                    $isPDF = strtolower(substr($receiptPath, -4)) === '.pdf';
-                                                    ?>
-                                                    <button class="btn btn-small btn-secondary"
-                                                        onclick="<?= $isPDF ? "showPDFPopup('../$receiptPath')" : "showReceiptImage('../$receiptPath')" ?>">
-                                                        <i class="fas fa-receipt"></i> Reçu
-                                                    </button>
-                                                <?php endif; ?>
-
-                                                <form method="POST" style="display: inline;">
-                                                    <input type="hidden" name="order_id" value="<?= $order['id'] ?>">
-                                                    <button type="submit" name="delete_order"
-                                                        class="btn btn-small btn-danger"
-                                                        onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette commande? Cette action est irréversible.')">
-                                                        <i class="fas fa-trash"></i> Supprimer
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
             <div id="archives" class="tab-content <?= $page === 'archives' ? 'active' : '' ?>">
                 <div class="card">
                     <div class="card-header">
@@ -529,49 +390,13 @@ require 'backendadmin.php';
                         </button>
                     </div>
 
-                    <form method="get" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;margin-bottom:16px">
-                        <input type="hidden" name="page" value="products">
-                        <select name="type" style="padding:8px;border:1px solid #ddd;border-radius:6px;">
-                            <option value="">Tous les types</option>
-                            <option value="made_to_order" <?= (isset($_GET['type']) && $_GET['type'] === 'made_to_order') ? 'selected' : '' ?>>Sur Commande</option>
-                            <option value="available" <?= (isset($_GET['type']) && $_GET['type'] === 'available') ? 'selected' : '' ?>>Disponible</option>
-                        </select>
-                        <?php $cats = $db->query("SELECT id, name FROM categories ORDER BY name")->fetchAll(PDO::FETCH_ASSOC); ?>
-                        <select name="category" style="padding:8px;border:1px solid #ddd;border-radius:6px;">
-                            <option value="">Toutes catégories</option>
-                            <?php foreach ($cats as $ct): ?>
-                                <option value="<?= $ct['id'] ?>" <?= (isset($_GET['category']) && $_GET['category'] == $ct['id']) ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($ct['name']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <input type="search" name="q" placeholder="Rechercher nom / description"
-                            value="<?= htmlspecialchars($_GET['q'] ?? '') ?>"
-                            style="padding:8px;border:1px solid #ddd;border-radius:6px; min-width:200px;">
-                        <button type="submit" class="btn">Filtrer</button>
-                        <a href="dashboard.php?page=products" class="btn btn-secondary">Réinitialiser</a>
-                    </form> 
-
                     <div class="product-list">
                         <?php
-                        $typeFilter = $_GET['type'] ?? null;
-                        $categoryFilter = $_GET['category'] ?? null;
-                        $q = trim($_GET['q'] ?? '');
+                        $filter = $_GET['filter'] ?? null;
                         $productsToShow = $products;
-                        if ($typeFilter === 'made_to_order' || $typeFilter === 'available') {
-                            $productsToShow = array_filter($productsToShow, function ($p) use ($typeFilter) {
-                                return ($p['product_type'] ?? 'made_to_order') === $typeFilter;
-                            });
-                        }
-                        if (!empty($categoryFilter)) {
-                            $productsToShow = array_filter($productsToShow, function ($p) use ($categoryFilter) {
-                                return ($p['category_id'] ?? '') == $categoryFilter;
-                            });
-                        }
-                        if ($q !== '') {
-                            $productsToShow = array_filter($productsToShow, function ($p) use ($q) {
-                                return (stripos($p['name'] ?? '', $q) !== false) || (stripos($p['description'] ?? '', $q) !== false);
-                            });
+                        if ($filter === 'made_to_order' || $filter === 'available') {
+                            $productsToShow = array_filter($products, function ($p) use ($filter) {
+                                return ($p['product_type'] ?? 'made_to_order') === $filter; });
                         }
                         ?>
                         <?php foreach ($productsToShow as $product): ?>
@@ -681,6 +506,7 @@ require 'backendadmin.php';
                     </div>
                 </div>
             </div>
+
             <div id="categories" class="tab-content <?= $page === 'categories' ? 'active' : '' ?>">
                 <div class="card">
                     <div class="card-header">
@@ -717,12 +543,11 @@ require 'backendadmin.php';
                                                 </td>
                                                 <td class="cat-name"><?= htmlspecialchars($c['name']) ?></td>
                                                 <td class="cat-desc" style="max-width:520px;">
-                                                    <?= nl2br(htmlspecialchars(mb_substr($c['description'], 0, 350))) ?>
-                                                    <?= mb_strlen($c['description']) > 350 ? '...' : '' ?>
+                                                    <?= nl2br(htmlspecialchars(mb_substr($c['description'], 0, 350))) ?>        <?= mb_strlen($c['description']) > 350 ? '...' : '' ?>
                                                 </td>
                                                 <td>
                                                     <button class="btn btn-small"
-                                                        onclick="openEditCategory(<?= $c['id'] ?>, <?= json_encode(htmlspecialchars($c['name'], ENT_QUOTES)) ?>, <?= json_encode(htmlspecialchars($c['description'], ENT_QUOTES)) ?>, <?= json_encode($c['image_path'] ?? '') ?>)"><i
+                                                        onclick='openEditCategory(<?= $c['id'] ?>, <?= json_encode($c['name']) ?>, <?= json_encode($c['description']) ?>, <?= json_encode($c['image_path'] ?? '') ?>)'><i
                                                             class="fas fa-edit"></i> Modifier</button>
                                                     <form method="post" style="display:inline;"
                                                         onsubmit="return deleteCategoryForm(this)">
@@ -903,7 +728,7 @@ require 'backendadmin.php';
                                     let imgCell = '<td style="width:90px;">';
                                     if (c.image_path) imgCell += '<img src="../' + c.image_path + '" style="height:60px;object-fit:cover;border-radius:6px;">'; else imgCell += '<div style="height:60px;width:90px;background:#f1f1f1;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#888">No</div>';
                                     imgCell += '</td>';
-                                    tr.innerHTML = imgCell + '<td class="cat-name">' + escapeHtml(c.name) + '</td><td class="cat-desc">' + escapeHtml(c.description).substring(0, 350) + (c.description && c.description.length > 350 ? '...' : '') + '</td><td><button class="btn btn-small" onclick="openEditCategory(' + c.id + ', ' + JSON.stringify(c.name) + ', ' + JSON.stringify(c.description) + ', ' + JSON.stringify(c.image_path || '') + ')"><i class="fas fa-edit"></i> Modifier</button> <form method="post" style="display:inline;" onsubmit="return deleteCategoryForm(this)"><input type="hidden" name="cat_id" value="' + c.id + '"><button class="btn btn-small btn-danger" name="delete_product_category">Supprimer</button></form></td>';
+                                    tr.innerHTML = imgCell + '<td class="cat-name">' + escapeHtml(c.name) + '</td><td class="cat-desc">' + escapeHtml(c.description).substring(0, 350) + (c.description && c.description.length > 350 ? '...' : '') + '</td><td><button class="btn btn-small" onclick=\'openEditCategory(' + c.id + ', ' + JSON.stringify(c.name) + ', ' + JSON.stringify(c.description) + ', ' + JSON.stringify(c.image_path || '') + ')\'><i class="fas fa-edit"></i> Modifier</button> <form method="post" style="display:inline;" onsubmit="return deleteCategoryForm(this)"><input type="hidden" name="cat_id" value="' + c.id + '"><button class="btn btn-small btn-danger" name="delete_product_category">Supprimer</button></form></td>';
                                     tbody.insertBefore(tr, tbody.firstChild);
                                 }
                                 // add option to selects
@@ -1193,145 +1018,119 @@ require 'backendadmin.php';
             <form id="add_product_form" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="add_product_v2" value="1">
 
-                <div style="margin-bottom:10px; font-size:13px; color:#555;">Champs obligatoires marqués par
-                    <strong>*</strong>. Utilisez les boutons <em>Filtres</em> sur la page Produits pour afficher
-                    uniquement "Sur Commande" ou "Disponible".
+                <div class="form-group">
+                    <label for="product_type">Type de produit</label>
+                    <select id="product_type" name="product_type">
+                        <option value="made_to_order">Sur Commande</option>
+                        <option value="available">Disponible</option>
+                    </select>
                 </div>
 
-                <div class="modal-grid">
-                    <div class="modal-col">
-                        <div class="form-group">
-                            <label for="product_images">Images du produit <strong>*</strong></label>
-                            <input type="file" id="product_images" name="product_images[]" accept="image/*"
-                                style="display:none;">
-                            <div id="add-images-grid" class="image-grid" data-target-input="product_images"></div>
-                            <div style="font-size:12px; color:#666; margin-top:6px;">Cliquez sur le + pour ajouter des
-                                images. Au moins une image requise.</div>
-                        </div>
+                <div class="form-group">
+                    <label for="product_images">Images du produit</label>
+                    <!-- Hidden file input — visually we show an image grid with a + tile -->
+                    <input type="file" id="product_images" name="product_images[]" multiple accept="image/*"
+                        style="display:none;">
+                    <div id="add-images-grid" class="image-grid" data-target-input="product_images"></div>
+                </div>
 
-                        <div class="form-group">
-                            <label for="product_type">Type de produit <strong>*</strong></label>
-                            <select id="product_type" name="product_type" required>
-                                <option value="made_to_order">Sur Commande</option>
-                                <option value="available">Disponible</option>
-                            </select>
-                        </div>
+                <div class="form-group">
+                    <label for="name">Nom du produit</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
 
-                        <div class="form-group">
-                            <label for="category_id">Catégorie</label>
-                            <?php $cats = $db->query("SELECT id, name FROM categories ORDER BY name")->fetchAll(PDO::FETCH_ASSOC); ?>
-                            <select name="category_id" id="category_id">
-                                <option value="">Aucune</option>
-                                <?php foreach ($cats as $ct): ?>
-                                    <option value="<?= $ct['id'] ?>"><?= htmlspecialchars($ct['name']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" required></textarea>
+                </div>
 
+                <div class="form-group">
+                    <label>Catégorie (optionnel)</label>
+                    <?php $cats = $db->query("SELECT id, name FROM categories ORDER BY name")->fetchAll(PDO::FETCH_ASSOC); ?>
+                    <select name="category_id">
+                        <option value="">Aucune</option>
+                        <?php foreach ($cats as $ct): ?>
+                            <option value="<?= $ct['id'] ?>"><?= htmlspecialchars($ct['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Dimensions (variantes)</label>
+                    <div id="dimensions-container">
+                        <!-- dimension rows will be added dynamically -->
+                    </div>
+                    <button type="button" class="btn btn-small btn-secondary" onclick="addDimensionRow()">
+                        <i class="fas fa-plus"></i> Ajouter une dimension
+                    </button>
+                    <div class="form-group">
+                        <label>Couleurs du produit (optionnel)</label>
+                        <div id="colors-container">
+                            <!-- Colors will be added by JavaScript -->
+                        </div>
+                        <button type="button" class="btn btn-small btn-secondary" onclick="addColorRow()">
+                            <i class="fas fa-plus"></i> Ajouter une couleur
+                        </button>
                     </div>
 
-                    <div class="modal-col">
-                        <div class="form-group">
-                            <label for="name">Nom du produit <strong>*</strong></label>
-                            <input type="text" id="name" name="name" placeholder="Ex: Table basse 120x70" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="description">Description <strong>*</strong></label>
-                            <textarea id="description" name="description" placeholder="Brève description du produit"
-                                required></textarea>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Dimensions (variantes) <strong>*</strong></label>
-                            <div id="dimensions-container">
-                                <!-- dimension rows will be added dynamically -->
+                    <div class="form-group">
+                        <label>Matériaux (Model)</label>
+                        <div style="display:flex; gap:12px; align-items:flex-start;" id="add-material-inputs">
+                            <div style="flex:1">
+                                <label>Tissu (nuancier)</label><br>
+                                <input type="file" name="material_tissu" accept="image/*"><br>
+                                <textarea name="material_tissu_description" placeholder="Description (optionnel)"
+                                    style="width:100%; margin-top:6px; height:60px;"></textarea>
                             </div>
-                            <button type="button" class="btn btn-small btn-secondary" onclick="addDimensionRow()">
-                                <i class="fas fa-plus"></i> Ajouter une dimension
-                            </button>
-                            <div style="font-size:12px; color:#666; margin-top:6px;">Ajoutez au moins une dimension et
-                                renseignez le label.</div>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Couleurs du produit (optionnel)</label>
-                            <div id="colors-container"></div>
-                            <button type="button" class="btn btn-small btn-secondary" onclick="addColorRow()">
-                                <i class="fas fa-plus"></i> Ajouter une couleur
-                            </button>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Matériaux (nuanciers)</label>
-                            <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;"
-                                id="add-material-inputs">
-                                <div style="flex:1; min-width:200px;">
-                                    <label>Tissu (nuancier)</label>
-                                    <input type="file" name="material_tissu" accept="image/*">
-                                    <textarea name="material_tissu_description" placeholder="Description (optionnel)"
-                                        style="width:100%; margin-top:6px; height:60px;"></textarea>
-                                </div>
-                                <div style="flex:1; min-width:200px;">
-                                    <label>Bois (nuancier)</label>
-                                    <input type="file" name="material_bois" accept="image/*">
-                                    <textarea name="material_bois_description" placeholder="Description (optionnel)"
-                                        style="width:100%; margin-top:6px; height:60px;"></textarea>
-                                </div>
+                            <div style="flex:1">
+                                <label>Bois (nuancier)</label><br>
+                                <input type="file" name="material_bois" accept="image/*"><br>
+                                <textarea name="material_bois_description" placeholder="Description (optionnel)"
+                                    style="width:100%; margin-top:6px; height:60px;"></textarea>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <div class="form-actions">
-                    <button type="submit" class="btn"><i class="fas fa-save"></i> Ajouter</button>
-                    <button type="button" class="btn btn-secondary" onclick="hideAddProductModal()">Annuler</button>
+                    <button type="submit" class="btn">
+                        <i class="fas fa-save"></i> Ajouter
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="hideAddProductModal()">
+                        Annuler
+                    </button>
                 </div>
             </form>
-
             <script>
-                // Client-side validation for add product (updated to match new layout)
+                // Client-side validation for add/edit product
                 document.getElementById('add_product_form').addEventListener('submit', function (e) {
+                    // ensure at least one dimension is present with a label
                     const dims = Array.from(document.querySelectorAll('#dimensions-container .dimension-row'));
-                    if (dims.length === 0) {
+                    if (dims.length === 0 || dims.every(r => !r.querySelector('input[name="dim_label[]"]').value.trim())) {
                         e.preventDefault();
-                        alert('Au moins une dimension est requise.');
+                        alert('Au moins une dimension (avec un label) est requise.');
                         return false;
                     }
-
-                    for (let i = 0; i < dims.length; i++) {
-                        const row = dims[i];
-                        const label = row.querySelector('input[name="dim_label[]"]');
-                        const price = row.querySelector('input[name="dim_price[]"]');
-                        const stock = row.querySelector('input[name="dim_stock[]"]');
-                        const unlimited = row.querySelector('input[name="dim_unlimited[]"]');
-
-                        if (!label || !label.value.trim()) {
-                            e.preventDefault();
-                            alert('La dimension #' + (i + 1) + ' nécessite un label.');
-                            return false;
-                        }
-                        if (!price || price.value === '' || isNaN(price.value) || Number(price.value) < 0) {
-                            e.preventDefault();
-                            alert('La dimension #' + (i + 1) + ' nécessite un prix valide.');
-                            return false;
-                        }
-                        if (unlimited && unlimited.checked) {
-                            // stock may be ignored
-                        } else {
-                            if (!stock || stock.value === '' || isNaN(stock.value) || Number(stock.value) < 0) {
-                                e.preventDefault();
-                                alert('La dimension #' + (i + 1) + ' nécessite un stock valide (ou cochez Illimité).');
-                                return false;
-                            }
-                        }
+                    // ensure at least one image selected
+                    const imgInput = document.getElementById('product_images');
+                    if (!imgInput || (!imgInput.files || imgInput.files.length === 0)) {
+                        e.preventDefault();
+                        alert('Au moins une image de produit est requise.');
+                        return false;
                     }
+                });
 
-                    // ensure at least one image selected (supports image grid hidden inputs)
-                    const imgInputs = Array.from(document.querySelectorAll('input[name="product_images[]"]'));
-                    let hasImage = false;
-                    imgInputs.forEach(i => { if (i.files && i.files.length) hasImage = true; });
-                    if (!hasImage) {
+                document.getElementById('edit_product_form').addEventListener('submit', function (e) {
+                    const dims = Array.from(document.querySelectorAll('#edit-dimensions-container .dimension-row'));
+                    if (dims.length === 0 || dims.every(r => !r.querySelector('input[name="dim_label[]"]').value.trim())) {
+                        e.preventDefault();
+                        alert('Au moins une dimension (avec un label) est requise.');
+                        return false;
+                    }
+                    // ensure image exists (either existing grid or new upload)
+                    const existing = document.querySelectorAll('#edit-product-images .image-tile:not(.image-add-tile)');
+                    const imgInput = document.getElementById('edit_product_images');
+                    if ((existing.length === 0) && (!imgInput || !imgInput.files || imgInput.files.length === 0)) {
                         e.preventDefault();
                         alert('Au moins une image de produit est requise.');
                         return false;
@@ -1481,12 +1280,9 @@ require 'backendadmin.php';
             });
 
             if (tabId === 'dashboard') {
-                const el = document.querySelector('.sidebar-link[href="dashboard.php"]'); if (el) el.classList.add('active');
-            } else if (tabId === 'products') {
-                // ensure the products sidebar link is marked active (link may contain query param)
-                const el = document.querySelector('.sidebar-link[href*="page=products"]'); if (el) el.classList.add('active');
+                document.querySelector('.sidebar-link[href="dashboard.php"]').classList.add('active');
             } else {
-                const el = document.querySelector(`.sidebar-link[href="#${tabId}"]`); if (el) el.classList.add('active');
+                document.querySelector(`.sidebar-link[href="#${tabId}"]`).classList.add('active');
             }
 
             // Close sidebar on mobile after selection
@@ -1525,11 +1321,6 @@ require 'backendadmin.php';
             document.getElementById('addProductModal').style.display = 'none';
             const inp = document.getElementById('product_images'); if (inp) { inp.value = ''; }
             const grid = document.getElementById('add-images-grid'); if (grid) grid.innerHTML = '';
-            // remove any dynamically created hidden inputs for images
-            const addForm = document.getElementById('add_product_form');
-            if (addForm) {
-                Array.from(addForm.querySelectorAll('input[name="product_images[]"]')).forEach(i => i.remove());
-            }
         }
 
         // Edit product modal functions
@@ -1648,11 +1439,6 @@ require 'backendadmin.php';
 
             const editInput = document.getElementById('edit_product_images'); if (editInput) editInput.value = '';
             const editGrid = document.getElementById('edit-product-images'); if (editGrid) editGrid.innerHTML = '';
-            // remove any dynamically created hidden inputs for edit images
-            const editForm = document.getElementById('edit_product_form');
-            if (editForm) {
-                Array.from(editForm.querySelectorAll('input[name="edit_product_images[]"], input[name="product_images[]"]')).forEach(i => i.remove());
-            }
         }
 
         function deleteProductImage(btn, imageId) {
@@ -1696,66 +1482,19 @@ require 'backendadmin.php';
         // primary image selection removed: no persistent `is_primary` column in the schema. If you want to reintroduce this feature, add an `is_primary` column via a migration and restore the handler.
 
         // Image grid helpers (add / edit) + dimension unlimited handling
-        // New behavior: each click on the + tile creates a new hidden file input so
-        // users can pick one image at a time. Each selected image keeps its own
-        // input (name ending with []) so it will be submitted with the form. The
-        // + tile remains available for further selections.
         function initImageGrid(inputId, gridId) {
-            const original = document.getElementById(inputId); // may exist in HTML
+            const input = document.getElementById(inputId);
             const grid = document.getElementById(gridId);
-            if (!grid) return;
-            // clear grid and recreate add tile
+            if (!input || !grid) return;
             grid.innerHTML = '';
+            // add tile
             const addTile = document.createElement('div');
             addTile.className = 'image-tile image-add-tile';
             addTile.innerHTML = '<div class="plus">+</div>';
+            addTile.addEventListener('click', () => input.click());
             grid.appendChild(addTile);
-
-            addTile.addEventListener('click', () => {
-                // create a new hidden file input for a single image
-                const fileInput = document.createElement('input');
-                fileInput.type = 'file';
-                fileInput.accept = 'image/*';
-                // use the original input's name if available, otherwise fallback
-                const baseName = (original && original.name) ? original.name : (inputId + '[]');
-                // ensure name ends with [] so multiple inputs are submitted as an array
-                fileInput.name = baseName.endsWith('[]') ? baseName : baseName + '[]';
-                fileInput.style.display = 'none';
-
-                // when a file is selected, create a preview tile and keep the input in DOM
-                fileInput.addEventListener('change', () => {
-                    if (!fileInput.files || fileInput.files.length === 0) {
-                        fileInput.remove();
-                        return;
-                    }
-                    const file = fileInput.files[0];
-                    const url = URL.createObjectURL(file);
-                    const tile = document.createElement('div');
-                    tile.className = 'image-tile new-file';
-                    tile.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;"> <button type="button" class="btn btn-small btn-danger image-remove" title="Retirer">×</button>`;
-                    const removeBtn = tile.querySelector('.image-remove');
-                    removeBtn.addEventListener('click', () => {
-                        // remove the associated input so it won't be submitted
-                        fileInput.remove();
-                        tile.remove();
-                    });
-                    grid.insertBefore(tile, addTile);
-                });
-
-                // append input to the closest form so it's submitted, otherwise to grid
-                const form = original ? original.closest('form') : grid.closest('form');
-                if (form) form.appendChild(fileInput); else grid.appendChild(fileInput);
-
-                // open file dialog
-                fileInput.click();
-            });
-
-            // keep original input hidden and clear its value to avoid duplicates
-            if (original) {
-                try { original.removeAttribute('multiple'); } catch (e) { }
-                original.value = '';
-                original.style.display = 'none';
-            }
+            // change handler
+            input.addEventListener('change', () => renderFilePreviews(input, grid));
         }
 
         function renderFilePreviews(input, grid) {
@@ -1789,16 +1528,23 @@ require 'backendadmin.php';
             const row = checkbox.closest('.dimension-row');
             if (!row) return;
             const stockInput = row.querySelector('input[name="dim_stock[]"]');
+            const stockMaxInput = row.querySelector('input[name="dim_stock_max[]"]');
             if (checkbox.checked) {
-                if (stockInput) {
-                    stockInput.value = 9999999;
-                    stockInput.disabled = true;
+                if (stockMaxInput && stockMaxInput.value) {
+                    if (stockInput) stockInput.value = stockMaxInput.value;
+                } else {
+                    if (stockInput) stockInput.value = 9999999;
+                }
+                if (stockInput) stockInput.disabled = true;
+                if (stockMaxInput) {
+                    stockMaxInput.addEventListener('input', function handler() {
+                        if (checkbox.checked) {
+                            if (stockInput) stockInput.value = stockMaxInput.value || 9999999;
+                        }
+                    });
                 }
             } else {
-                if (stockInput) {
-                    stockInput.disabled = false;
-                    if (String(stockInput.value) === '9999999') stockInput.value = '';
-                }
+                if (stockInput) { stockInput.disabled = false; if (stockInput.value == '9999999') stockInput.value = ''; }
             }
         }
 
@@ -1938,19 +1684,18 @@ require 'backendadmin.php';
 
             // inner HTML: simple dimension row (no images per dimension in new schema)
             row.innerHTML = `
-        <div class="dimension-row-inner">
-            <input type="text" name="dim_label[]" placeholder="Label (ex: 120x70)" class="dim-field dim-label" required>
-            <input type="number" name="width_cm[]" placeholder="L (cm)" class="dim-field" min="0">
-            <input type="number" name="height_cm[]" placeholder="H (cm)" class="dim-field" min="0">
-            <input type="number" name="depth_cm[]" placeholder="P (cm)" class="dim-field" min="0">
-            <input type="number" name="dim_price[]" placeholder="Prix (DA)" class="dim-field dim-price" step="0.01" min="0" required>
-            <input type="number" name="dim_stock[]" placeholder="Stock" class="dim-field dim-stock" min="0" required>
-            <input type="number" name="dim_price_new[]" placeholder="Prix promo (DA)" class="dim-field dim-price-new" step="0.01" min="0">
-            <input type="number" name="dim_promo_percent[]" placeholder="% Promo" class="dim-field dim-promo" min="0" max="100">
-        </div>
-        <div class="dimension-row-actions">
-            <label class="dim-checkbox"><input type="checkbox" name="dim_unlimited[]" value="1" onchange="onDimensionUnlimitedToggle(this)"> Illimité</label>
-            <label class="dim-checkbox">Par défaut <input type="checkbox" name="dim_is_default[]" value="1" onchange="ensureSingleDefault(this)"></label>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <input type="number" name="width_cm[]" placeholder="Largeur (cm)" style="width:110px;" min="0">
+            <input type="number" name="height_cm[]" placeholder="Hauteur (cm)" style="width:110px;" min="0">
+            <input type="number" name="depth_cm[]" placeholder="Profondeur (cm)" style="width:110px;" min="0">
+            <input type="text" name="dim_label[]" placeholder="Label (ex: 120x70)" style="width:131px;">
+            <input type="number" name="dim_price[]" placeholder="Prix (DA)" style="width:120px;" step="0.01" min="0">
+            <input type="number" name="dim_price_new[]" placeholder="Prix promo (DA)" style="width:120px;" step="0.01" min="0">
+            <input type="number" name="dim_promo_percent[]" placeholder="% Promo" style="width:80px;" min="0" max="100">
+            <input type="number" name="dim_stock[]" placeholder="Stock" style="width:90px;" min="0">
+            <input type="number" name="dim_stock_max[]" placeholder="Stock max" style="width:90px;" min="0">
+            <label style="display:flex;align-items:center;gap:6px;margin-left:6px;"><input type="checkbox" name="dim_unlimited[]" value="1" onchange="onDimensionUnlimitedToggle(this)"> Illimité</label>
+            <label style="display:flex;align-items:center;gap:6px;margin-left:6px;">Par défaut <input type="checkbox" name="dim_is_default[]" value="1" onchange="ensureSingleDefault(this)"></label>
             <button type="button" class="btn btn-small btn-danger" onclick="removeDimensionRow(this)"><i class="fas fa-trash"></i></button>
         </div>
     `;
@@ -1983,34 +1728,37 @@ require 'backendadmin.php';
             const stock = dimData ? (dimData.stock || '') : '';
             const index = dimensionIndex++;
             row.innerHTML = `
-        <div class="dimension-row-inner">
-            <input type="text" name="dim_label[]" placeholder="Label (ex: 120x70)" class="dim-field dim-label" value="${label}" required>
-            <input type="number" name="width_cm[]" placeholder="L (cm)" class="dim-field" min="0" value="${width}">
-            <input type="number" name="height_cm[]" placeholder="H (cm)" class="dim-field" min="0" value="${height}">
-            <input type="number" name="depth_cm[]" placeholder="P (cm)" class="dim-field" min="0" value="${dimData && dimData.depth_cm ? dimData.depth_cm : ''}">
-            <input type="number" name="dim_price[]" placeholder="Prix (DA)" class="dim-field dim-price" step="0.01" min="0" value="${price}" required>
-            <input type="number" name="dim_stock[]" placeholder="Stock" class="dim-field dim-stock" min="0" value="${stock}" required>
-            <input type="number" name="dim_price_new[]" placeholder="Prix promo (DA)" class="dim-field dim-price-new" step="0.01" min="0" value="${dimData && dimData.price_new ? dimData.price_new : ''}">
-            <input type="number" name="dim_promo_percent[]" placeholder="% Promo" class="dim-field dim-promo" min="0" max="100" value="${dimData && dimData.promo_percent ? dimData.promo_percent : ''}">
-        </div>
-        <div class="dimension-row-actions">
-            <label class="dim-checkbox"><input type="checkbox" name="dim_unlimited[]" value="1" ${dimData && (dimData.stock == 9999999) ? 'checked' : ''} onchange="onDimensionUnlimitedToggle(this)"> Illimité</label>
-            <label class="dim-checkbox">Par défaut <input type="checkbox" name="dim_is_default[]" value="1" ${dimData && dimData.is_default ? 'checked' : ''} onchange="ensureSingleDefault(this)"></label>
-            <button type="button" class="btn btn-small btn-danger" onclick="removeDimensionRow(this)"><i class="fas fa-trash"></i></button>
-        </div>
-    `;
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <input type="number" name="width_cm[]" placeholder="Largeur (cm)" style="width:110px;" min="0" value="${width}">
+      <input type="number" name="height_cm[]" placeholder="Hauteur (cm)" style="width:110px;" min="0" value="${height}">
+      <input type="number" name="depth_cm[]" placeholder="Profondeur (cm)" style="width:110px;" min="0" value="${dimData && dimData.depth_cm ? dimData.depth_cm : ''}">
+      <input type="text" name="dim_label[]" placeholder="Label (ex: 120x70)" style="width:131px;" value="${label}">
+      <input type="number" name="dim_price[]" placeholder="Prix (DA)" style="width:120px;" step="0.01" min="0" value="${price}">
+      <input type="number" name="dim_price_new[]" placeholder="Prix promo (DA)" style="width:120px;" step="0.01" min="0" value="${dimData && dimData.price_new ? dimData.price_new : ''}">
+      <input type="number" name="dim_promo_percent[]" placeholder="% Promo" style="width:80px;" min="0" max="100" value="${dimData && dimData.promo_percent ? dimData.promo_percent : ''}">
+      <input type="number" name="dim_stock[]" placeholder="Stock" style="width:110px;" min="0" value="${stock}">
+      <input type="number" name="dim_stock_max[]" placeholder="Stock max" style="width:90px;" min="0" value="${dimData && dimData.stock_max ? dimData.stock_max : ''}">
+      <label style="display:flex;align-items:center;gap:6px;margin-left:6px;"><input type="checkbox" name="dim_unlimited[]" value="1" ${(dimData && ((dimData.stock_max && (dimData.stock === dimData.stock_max)))) ? 'checked' : ''} onchange="onDimensionUnlimitedToggle(this)"> Illimité</label>
+      <label style="display:flex;align-items:center;gap:6px;margin-left:6px;">Par défaut <input type="checkbox" name="dim_is_default[]" value="1" ${dimData && dimData.is_default ? 'checked' : ''} onchange="ensureSingleDefault(this)"></label>
+      <button type="button" class="btn btn-small btn-danger" onclick="removeDimensionRow(this)"><i class="fas fa-trash"></i></button>
+    </div>
+  `;
             container.appendChild(row);
 
-            // wire up unlimited checkbox to disable stock input when applicable
+            // wire up stock_max input to reflect unlimited checkbox when applicable
             (function wireStockHandlers() {
                 const chk = row.querySelector('input[name="dim_unlimited[]"]');
                 const stockInput = row.querySelector('input[name="dim_stock[]"]');
-                if (chk && stockInput) {
+                const stockMaxInput = row.querySelector('input[name="dim_stock_max[]"]');
+                if (chk && stockInput && stockMaxInput) {
                     // initial state
                     if (chk.checked) {
                         stockInput.disabled = true;
-                        stockInput.value = 9999999;
+                        stockInput.value = stockMaxInput.value || 9999999;
                     }
+                    stockMaxInput.addEventListener('input', () => {
+                        if (chk.checked) stockInput.value = stockMaxInput.value || 9999999;
+                    });
                 }
             })();
 
