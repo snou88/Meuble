@@ -18,9 +18,7 @@ CREATE TABLE IF NOT EXISTS `categories` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `slug` (`slug`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- --------------------------------------------------------
+);
 
 --
 -- Structure de la table `customer_messages`
@@ -36,10 +34,7 @@ CREATE TABLE IF NOT EXISTS `customer_messages` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `is_read` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
-
--- --------------------------------------------------------
+);
 
 --
 -- Structure de la table `material_color_catalogs`
@@ -55,9 +50,7 @@ CREATE TABLE IF NOT EXISTS `material_color_catalogs` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `unique_catalog` (`product_id`,`material_type`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- --------------------------------------------------------
+);
 
 --
 -- Structure de la table `orders`
@@ -71,16 +64,15 @@ CREATE TABLE IF NOT EXISTS `orders` (
   `customer_email` varchar(150) DEFAULT NULL,
   `customer_address` text NOT NULL,
   `commune` varchar(100) DEFAULT NULL,
-  `wilaya_name` varchar(50) DEFAULT NULL,
+  `wilaya_id` int DEFAULT NULL,
   `delivery_type` varchar(50) DEFAULT NULL,
   `total_price` DECIMAL(10,2) NOT NULL,
   `delivery_price` decimal(10,2) DEFAULT '0.00',
   `status` varchar(30) DEFAULT 'pending',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY `wilaya_id` (`wilaya_id`),
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- --------------------------------------------------------
+);
 
 --
 -- Structure de la table `order_items`
@@ -103,9 +95,7 @@ CREATE TABLE IF NOT EXISTS `order_items` (
   KEY `dimension_id` (`dimension_id`),
   KEY `tissu_color_id` (`tissu_color_id`),
   KEY `bois_color_id` (`bois_color_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- --------------------------------------------------------
+);
 
 --
 -- Structure de la table `products`
@@ -121,9 +111,7 @@ CREATE TABLE IF NOT EXISTS `products` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `category_id` (`category_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- --------------------------------------------------------
+);
 
 --
 -- Structure de la table `product_colors`
@@ -141,10 +129,7 @@ CREATE TABLE IF NOT EXISTS `product_colors` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `product_color_type_idx` (`product_id`,`type`)
-) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
-
--- --------------------------------------------------------
+);
 
 --
 -- Structure de la table `product_dimensions`
@@ -167,10 +152,7 @@ CREATE TABLE IF NOT EXISTS `product_dimensions` (
   PRIMARY KEY (`id`),
   KEY `product_id` (`product_id`),
   KEY `price_idx` (`price`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
-
--- --------------------------------------------------------
+);
 
 --
 -- Structure de la table `product_images`
@@ -184,9 +166,7 @@ CREATE TABLE IF NOT EXISTS `product_images` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `product_id` (`product_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- --------------------------------------------------------
+);
 
 --
 -- Structure de la table `wilayas`
@@ -200,4 +180,4 @@ CREATE TABLE IF NOT EXISTS `wilayas` (
   `stopdesk_price` int NOT NULL DEFAULT '0',
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+);

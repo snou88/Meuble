@@ -251,6 +251,153 @@ require 'backendadmin.php';
                 </div>
             </div>
 
+            <div id="orders" class="tab-content <?= $page === 'orders' ? 'active' : '' ?>">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Toutes les commandes</h2>
+                        <form method="GET" style="display: flex; gap: 10px; align-items: center;">
+                            <input type="hidden" name="page" value="orders">
+                            <input type="text" name="search_phone" placeholder="Rechercher par téléphone"
+                                value="<?= isset($_GET['search_phone']) ? htmlspecialchars($_GET['search_phone']) : '' ?>"
+                                style="padding: 6px; border-radius: 4px; border: 1px solid #ccc;">
+                            <button type="submit" class="btn btn-small btn-info"><i class="fas fa-search"></i>
+                                Rechercher</button>
+                            <?php if (!empty($_GET['search_phone'])): ?>
+                                <a href="dashboard.php?page=orders" class="btn btn-small btn-secondary">Réinitialiser</a>
+                            <?php endif; ?>
+                        </form>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Client</th>
+                                    <th>Produit</th>
+                                    <th>Image</th>
+                                    <th>Prix</th>
+                                    <th>Date</th>
+                                    <th>Statut</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($all_orders as $order): ?>
+                                    <?php $items = getOrderItems($db, $order['id']); ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars($order['customer_name']) ?></td>
+                                        <td>
+                                            <?php if ($items): ?>
+                                                <?php foreach ($items as $item): ?>
+                                                    <?= htmlspecialchars($item['product_name']) ?> (Taille:
+                                                    <?= htmlspecialchars($item['size']) ?>, Qte:
+                                                    <?= $item['quantity'] ?>             <?php if (!empty($item['color'])): ?>, Couleur: <span
+                                                            style="display: inline-block; width: 15px; height: 15px; background-color: <?= htmlspecialchars($item['color_code'] ?? $item['color']) ?>; border: 1px solid #ddd; border-radius: 50%; vertical-align: middle; margin-right: 5px;"></span><?= htmlspecialchars($item['color']) ?><?php endif; ?>)<br>
+                                                <?php endforeach; ?>
+                                            <?php else: ?>
+                                                <?= htmlspecialchars($order['product_name'] ?? '') ?> (Taille:
+                                                <?= htmlspecialchars($order['size'] ?? '') ?>, Qte:
+                                                <?= $order['quantity'] ?? 1 ?>         <?php if (!empty($order['color'])): ?>, Couleur:
+                                                    <span
+                                                        style="display: inline-block; width: 15px; height: 15px; background-color: <?= htmlspecialchars($order['color_code'] ?? $order['color']) ?>; border: 1px solid #ddd; border-radius: 50%; vertical-align: middle; margin-right: 5px;"></span><?= htmlspecialchars($order['color']) ?><?php endif; ?>)
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?php
+                                            // Prefer new schema column names, fall back to older ones if present
+                                            $firstImage = null;
+                                            if (!empty($items) && !empty($items[0]['image_path'])) {
+                                                $firstImage = $items[0]['image_path'];
+                                            } elseif (!empty($items) && !empty($items[0]['product_image'])) {
+                                                $firstImage = $items[0]['product_image'];
+                                            } elseif (!empty($order['image_path'])) {
+                                                $firstImage = $order['image_path'];
+                                            } elseif (!empty($order['product_image'])) {
+                                                $firstImage = $order['product_image'];
+                                            }
+                                            if (!empty($firstImage)): ?>
+                                                <img src="../<?= $firstImage ?>" class="product-image-thumb">
+                                            <?php else: ?>
+                                                <img src="../images/default_product.jpg" class="product-image-thumb">
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="price-details">
+                                            <?php if ($items): ?>
+                                                <?php $total = 0;
+                                                foreach ($items as $item) {
+                                                    $unit = $item['unit_price'] ?? $item['product_price'] ?? $item['price'] ?? 0;
+                                                    $qty = $item['quantity'] ?? 1;
+                                                    $total += $unit * $qty;
+                                                } ?>
+                                                <span class="label">Produit:</span> <?= number_format($total, 2, ',', ' ') ?>
+                                                DA<br>
+                                                <span class="label">Livraison:</span>
+                                                <?= number_format($order['delivery_price'] ?? 0, 2, ',', ' ') ?> DA<br>
+                                                <span class="label">Total:</span>
+                                                <?= number_format($order['total_price'] ?? ($total + ($order['delivery_price'] ?? 0)), 2, ',', ' ') ?> DA
+                                            <?php else: ?>
+                                                <?php $singleProductPrice = ($order['product_price'] ?? null);
+                                                if ($singleProductPrice === null) {
+                                                    $singleProductPrice = ($order['total_price'] ?? 0) - ($order['delivery_price'] ?? 0);
+                                                }
+                                                ?>
+                                                <span class="label">Produit:</span>
+                                                <?= number_format($singleProductPrice, 2, ',', ' ') ?> DA<br>
+                                                <span class="label">Livraison:</span>
+                                                <?= number_format($order['delivery_price'] ?? 0, 2, ',', ' ') ?> DA<br>
+                                                <span class="label">Total:</span>
+                                                <?= number_format($order['total_price'] ?? ($singleProductPrice + ($order['delivery_price'] ?? 0)), 2, ',', ' ') ?> DA
+                                            <?php endif; ?>
+                                        </td>
+                                        <td><?= date('d/m/Y H:i', strtotime($order['created_at'] ?? $order['order_date'] ?? 'now')) ?></td>
+                                        <td>
+                                            <form method="POST" class="status-form">
+                                                <input type="hidden" name="order_id" value="<?= $order['id'] ?>">
+                                                <select name="status" onchange="this.form.submit()">
+                                                    <option value="pending" <?= $order['status'] == 'pending' ? 'selected' : '' ?>>En attente</option>
+                                                    <option value="processing" <?= $order['status'] == 'processing' ? 'selected' : '' ?>>En traitement</option>
+                                                    <option value="shipped" <?= $order['status'] == 'shipped' ? 'selected' : '' ?>>Expédié</option>
+                                                    <option value="delivered" <?= $order['status'] == 'delivered' ? 'selected' : '' ?>>Livré</option>
+                                                    <option value="archived" <?= $order['status'] == 'archived' ? 'selected' : '' ?>>Archivé</option>
+                                                    <option value="canceled" <?= $order['status'] == 'canceled' ? 'selected' : '' ?>>Annulé</option>
+                                                </select>
+                                                <input type="hidden" name="update_order_status" value="1">
+                                            </form>
+                                        </td>
+                                        <td>
+                                            <div style="display: flex; gap: 5px;">
+                                                <button class="btn btn-small btn-info"
+                                                    onclick="showClientDetailsAjax(<?= $order['id'] ?>)">
+                                                    <i class="fas fa-info-circle"></i> Détails
+                                                </button>
+
+                                                <?php if (!empty($order['payment_receipt'])):
+                                                    $receiptPath = $order['payment_receipt'];
+                                                    $isPDF = strtolower(substr($receiptPath, -4)) === '.pdf';
+                                                    ?>
+                                                    <button class="btn btn-small btn-secondary"
+                                                        onclick="<?= $isPDF ? "showPDFPopup('../$receiptPath')" : "showReceiptImage('../$receiptPath')" ?>">
+                                                        <i class="fas fa-receipt"></i> Reçu
+                                                    </button>
+                                                <?php endif; ?>
+
+                                                <form method="POST" style="display: inline;">
+                                                    <input type="hidden" name="order_id" value="<?= $order['id'] ?>">
+                                                    <button type="submit" name="delete_order"
+                                                        class="btn btn-small btn-danger"
+                                                        onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette commande? Cette action est irréversible.')">
+                                                        <i class="fas fa-trash"></i> Supprimer
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
             <div id="archives" class="tab-content <?= $page === 'archives' ? 'active' : '' ?>">
                 <div class="card">
                     <div class="card-header">
@@ -1122,24 +1269,24 @@ require 'backendadmin.php';
                     }
                 });
 
-                document.getElementById('edit_product_form').addEventListener('submit', function (e) {
-                    const dims = Array.from(document.querySelectorAll('#edit-dimensions-container .dimension-row'));
-                    if (dims.length === 0 || dims.every(r => !r.querySelector('input[name="dim_label[]"]').value.trim())) {
-                        e.preventDefault();
-                        alert('Au moins une dimension (avec un label) est requise.');
-                        return false;
-                    }
-                    // ensure image exists (either existing grid or new upload)
-                    const existing = document.querySelectorAll('#edit-product-images .image-tile:not(.image-add-tile)');
-                    const editInputs = Array.from(document.querySelectorAll('input[name="product_images[]"], input[name="edit_product_images[]"]'));
-                    let hasEditImage = false;
-                    editInputs.forEach(i => { if (i.files && i.files.length) hasEditImage = true; });
-                    if ((existing.length === 0) && (!hasEditImage)) {
-                        e.preventDefault();
-                        alert('Au moins une image de produit est requise.');
-                        return false;
-                    }
-                });
+                // document.getElementById('edit_product_form').addEventListener('submit', function (e) {
+                //     const dims = Array.from(document.querySelectorAll('#edit-dimensions-container .dimension-row'));
+                //     if (dims.length === 0 || dims.every(r => !r.querySelector('input[name="dim_label[]"]').value.trim())) {
+                //         e.preventDefault();
+                //         alert('Au moins une dimension (avec un label) est requise.');
+                //         return false;
+                //     }
+                //     // ensure image exists (either existing grid or new upload)
+                //     const existing = document.querySelectorAll('#edit-product-images .image-tile:not(.image-add-tile)');
+                //     const editInputs = Array.from(document.querySelectorAll('input[name="product_images[]"], input[name="edit_product_images[]"]'));
+                //     let hasEditImage = false;
+                //     editInputs.forEach(i => { if (i.files && i.files.length) hasEditImage = true; });
+                //     if ((existing.length === 0) && (!hasEditImage)) {
+                //         e.preventDefault();
+                //         alert('Au moins une image de produit est requise.');
+                //         return false;
+                //     }
+                // });
             </script>
         </div>
     </div>

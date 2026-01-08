@@ -991,6 +991,25 @@ if ($searchPhone !== '') {
     $all_archives = $db->query("SELECT * FROM orders WHERE status = 'archived' OR status = 'canceled' ORDER BY created_at DESC")->fetchAll(PDO::FETCH_ASSOC);
 }
 
+// If orders store wilaya_id, resolve wilaya name for display
+$resolveWilayaName = function(&$arr) use ($db) {
+    if (!is_array($arr)) return;
+    $wstmt = $db->prepare('SELECT name FROM wilayas WHERE id = ? LIMIT 1');
+    foreach ($arr as &$o) {
+        if (!empty($o['wilaya_name'])) continue; // already present
+        if (!empty($o['wilaya_id'])) {
+            $wstmt->execute([$o['wilaya_id']]);
+            $wrow = $wstmt->fetch(PDO::FETCH_ASSOC);
+            if ($wrow) $o['wilaya_name'] = $wrow['name'];
+            else $o['wilaya_name'] = null;
+        }
+    }
+};
+
+$resolveWilayaName($recent_orders);
+$resolveWilayaName($all_orders);
+$resolveWilayaName($all_archives);
+
 // Helper to get order items
 function getOrderItems($db, $order_id)
 {
@@ -1050,34 +1069,46 @@ function getOrderItems($db, $order_id)
         $item['tissu_color_code'] = null;
         $item['bois_color_code'] = null;
 
-        if (!empty($item['tissu_color']) && !empty($item['product_id'])) {
+        // If stored as color ids, look them up
+        if (!empty($item['tissu_color_id'])) {
+            $tstmt = $db->prepare('SELECT color_code, color_name FROM product_colors WHERE id = ? LIMIT 1');
+            $tstmt->execute([$item['tissu_color_id']]);
+            $trow = $tstmt->fetch(PDO::FETCH_ASSOC);
+            if ($trow) {
+                $item['tissu_color_code'] = $trow['color_code'] ?? null;
+                $item['tissu_color'] = $trow['color_name'] ?? null;
+            }
+        } elseif (!empty($item['tissu_color']) && !empty($item['product_id'])) {
             $t = $item['tissu_color'];
-            // if already looks like a code, normalize
             if (preg_match('/^#?[0-9A-Fa-f]{3,6}$/', $t)) {
-                if ($t[0] !== '#')
-                    $t = '#' . $t;
+                if ($t[0] !== '#') $t = '#' . $t;
                 $item['tissu_color_code'] = $t;
             } else {
                 $tstmt = $db->prepare('SELECT color_code FROM product_colors WHERE product_id = ? AND type = "tissu" AND (color_name = ? OR color_code = ?) LIMIT 1');
                 $tstmt->execute([$item['product_id'], $item['tissu_color'], $item['tissu_color']]);
                 $trow = $tstmt->fetch(PDO::FETCH_ASSOC);
-                if ($trow && !empty($trow['color_code']))
-                    $item['tissu_color_code'] = $trow['color_code'];
+                if ($trow && !empty($trow['color_code'])) $item['tissu_color_code'] = $trow['color_code'];
             }
         }
 
-        if (!empty($item['bois_color']) && !empty($item['product_id'])) {
+        if (!empty($item['bois_color_id'])) {
+            $bstmt = $db->prepare('SELECT color_code, color_name FROM product_colors WHERE id = ? LIMIT 1');
+            $bstmt->execute([$item['bois_color_id']]);
+            $brow = $bstmt->fetch(PDO::FETCH_ASSOC);
+            if ($brow) {
+                $item['bois_color_code'] = $brow['color_code'] ?? null;
+                $item['bois_color'] = $brow['color_name'] ?? null;
+            }
+        } elseif (!empty($item['bois_color']) && !empty($item['product_id'])) {
             $b = $item['bois_color'];
             if (preg_match('/^#?[0-9A-Fa-f]{3,6}$/', $b)) {
-                if ($b[0] !== '#')
-                    $b = '#' . $b;
+                if ($b[0] !== '#') $b = '#' . $b;
                 $item['bois_color_code'] = $b;
             } else {
                 $bstmt = $db->prepare('SELECT color_code FROM product_colors WHERE product_id = ? AND type = "bois" AND (color_name = ? OR color_code = ?) LIMIT 1');
                 $bstmt->execute([$item['product_id'], $item['bois_color'], $item['bois_color']]);
                 $brow = $bstmt->fetch(PDO::FETCH_ASSOC);
-                if ($brow && !empty($brow['color_code']))
-                    $item['bois_color_code'] = $brow['color_code'];
+                if ($brow && !empty($brow['color_code'])) $item['bois_color_code'] = $brow['color_code'];
             }
         }
 
