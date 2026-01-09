@@ -62,9 +62,9 @@ try {
         $dim = $d->fetch();
         if (!$dim) throw new Exception('Dimension not found');
 
-        // image for dimension
-        $imgStmt = $db->prepare('SELECT image_path FROM dimension_images WHERE dimension_id = :did ORDER BY is_primary DESC, id LIMIT 1');
-        $imgStmt->execute([':did' => $dimensionId]);
+        // image for product (schema uses product-level images)
+        $imgStmt = $db->prepare('SELECT image_path FROM product_images WHERE product_id = :pid ORDER BY id LIMIT 1');
+        $imgStmt->execute([':pid' => $productId]);
         $imgRow = $imgStmt->fetch();
         $image = $imgRow ? $imgRow['image_path'] : 'assets/images/default_product.jpg';
 
@@ -162,15 +162,15 @@ try {
         }
         $total_price = $subtotal + $delivery_price;
 
-        // insert order
-        $orderStmt = $db->prepare('INSERT INTO orders (customer_name, customer_phone, customer_address, commune, wilaya_name, delivery_type, delivery_price, total_price, status) VALUES (:name, :phone, :address, :commune, :wilaya, :delivery_type, :delivery_price, :total_price, :status)');
+        // insert order (store wilaya id instead of name)
+        $orderStmt = $db->prepare('INSERT INTO orders (customer_name, customer_phone, customer_address, commune, wilaya_id, delivery_type, delivery_price, total_price, status) VALUES (:name, :phone, :address, :commune, :wilaya_id, :delivery_type, :delivery_price, :total_price, :status)');
         $customerName = $first . ' ' . $last;
         $orderStmt->execute([
             ':name' => $customerName,
             ':phone' => $phone,
             ':address' => $address,
             ':commune' => $commune,
-            ':wilaya' => $wilaya_name,
+            ':wilaya_id' => $wilaya_id,
             ':delivery_type' => $delivery_type,
             ':delivery_price' => $delivery_price,
             ':total_price' => $total_price,
@@ -180,15 +180,32 @@ try {
         $orderId = $db->lastInsertId();
 
         // insert order items
-        $itemStmt = $db->prepare('INSERT INTO order_items (order_id, product_id, dimension_id, dimension_label, tissu_color, bois_color, unit_price, quantity, total_price) VALUES (:order_id, :product_id, :dimension_id, :dimension_label, :tissu_color, :bois_color, :unit_price, :quantity, :total_price)');
+        // Note: color columns changed to store color IDs (tissu_color_id, bois_color_id)
+        $itemStmt = $db->prepare('INSERT INTO order_items (order_id, product_id, dimension_id, tissu_color_id, bois_color_id, unit_price, quantity, total_price) VALUES (:order_id, :product_id, :dimension_id, :tissu_color_id, :bois_color_id, :unit_price, :quantity, :total_price)');
+        // use distinct placeholders for name/code to avoid driver issues with repeated named params
+        $colorLookupStmt = $db->prepare('SELECT id, color_name, color_code FROM product_colors WHERE product_id = :pid AND type = :type AND (color_name = :val1 OR color_code = :val2) LIMIT 1');
         foreach ($_SESSION['cart'] as $it) {
+            // Resolve tissu color id
+            $tissu_id = null;
+            if (!empty($it['fabric'])) {
+                $colorLookupStmt->execute([':pid' => $it['product_id'], ':type' => 'tissu', ':val1' => $it['fabric'], ':val2' => $it['fabric']]);
+                $crow = $colorLookupStmt->fetch(PDO::FETCH_ASSOC);
+                if ($crow) $tissu_id = (int)$crow['id'];
+            }
+            // Resolve bois color id
+            $bois_id = null;
+            if (!empty($it['wood'])) {
+                $colorLookupStmt->execute([':pid' => $it['product_id'], ':type' => 'bois', ':val1' => $it['wood'], ':val2' => $it['wood']]);
+                $crow = $colorLookupStmt->fetch(PDO::FETCH_ASSOC);
+                if ($crow) $bois_id = (int)$crow['id'];
+            }
+
             $itemStmt->execute([
                 ':order_id' => $orderId,
                 ':product_id' => $it['product_id'],
                 ':dimension_id' => $it['dimension_id'],
-                ':dimension_label' => $it['dimension_label'],
-                ':tissu_color' => $it['fabric'],
-                ':bois_color' => $it['wood'],
+                ':tissu_color_id' => $tissu_id,
+                ':bois_color_id' => $bois_id,
                 ':unit_price' => $it['unit_price'],
                 ':quantity' => $it['qty'],
                 ':total_price' => $it['total_price']

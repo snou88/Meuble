@@ -17,10 +17,18 @@ try {
         exit;
     }
 
+    // If orders now store wilaya_id, resolve the wilaya name for display
+    if (!empty($order['wilaya_id'])) {
+        $wstmt = $db->prepare('SELECT name FROM wilayas WHERE id = ? LIMIT 1');
+        $wstmt->execute([$order['wilaya_id']]);
+        $wrow = $wstmt->fetch(PDO::FETCH_ASSOC);
+        if ($wrow) $order['wilaya_name'] = $wrow['name'];
+    }
+
     // Fetch items with joins
     $itStmt = $db->prepare(
         'SELECT oi.*, p.name AS product_name, pd.label AS size, oi.unit_price AS product_price,
-            (SELECT di.image_path FROM dimension_images di WHERE di.dimension_id = oi.dimension_id ORDER BY di.is_primary DESC, di.id LIMIT 1) AS product_image
+            (SELECT pi.image_path FROM product_images pi WHERE pi.product_id = oi.product_id ORDER BY pi.id LIMIT 1) AS product_image
          FROM order_items oi
          LEFT JOIN products p ON p.id = oi.product_id
          LEFT JOIN product_dimensions pd ON pd.id = oi.dimension_id
@@ -50,7 +58,17 @@ try {
     foreach ($items as &$it) {
         $it['tissu_color_code'] = null;
         $it['bois_color_code'] = null;
-        if (!empty($it['tissu_color']) && !empty($it['product_id'])) {
+        // If color ids are stored, resolve them
+        if (!empty($it['tissu_color_id'])) {
+            $tstmt = $db->prepare('SELECT color_code, color_name FROM product_colors WHERE id = ? LIMIT 1');
+            $tstmt->execute([$it['tissu_color_id']]);
+            $trow = $tstmt->fetch(PDO::FETCH_ASSOC);
+            if ($trow) {
+                $it['tissu_color_code'] = $trow['color_code'] ?? null;
+                $it['tissu_color'] = $trow['color_name'] ?? null;
+            }
+        } elseif (!empty($it['tissu_color']) && !empty($it['product_id'])) {
+            // legacy: resolve by name/code
             $t = $it['tissu_color'];
             if (preg_match('/^#?[0-9A-Fa-f]{3,6}$/', $t)) {
                 if ($t[0] !== '#') $t = '#'.$t;
@@ -62,7 +80,16 @@ try {
                 if ($trow && !empty($trow['color_code'])) $it['tissu_color_code'] = $trow['color_code'];
             }
         }
-        if (!empty($it['bois_color']) && !empty($it['product_id'])) {
+
+        if (!empty($it['bois_color_id'])) {
+            $bstmt = $db->prepare('SELECT color_code, color_name FROM product_colors WHERE id = ? LIMIT 1');
+            $bstmt->execute([$it['bois_color_id']]);
+            $brow = $bstmt->fetch(PDO::FETCH_ASSOC);
+            if ($brow) {
+                $it['bois_color_code'] = $brow['color_code'] ?? null;
+                $it['bois_color'] = $brow['color_name'] ?? null;
+            }
+        } elseif (!empty($it['bois_color']) && !empty($it['product_id'])) {
             $b = $it['bois_color'];
             if (preg_match('/^#?[0-9A-Fa-f]{3,6}$/', $b)) {
                 if ($b[0] !== '#') $b = '#'.$b;

@@ -23,6 +23,30 @@
     $cartCount = 0;
     foreach ($cartItems as $it)
         $cartCount += (int) $it['qty'];
+
+    // Handle contact message submission from homepage
+    $messageStatus = null;
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_message'])) {
+        require_once __DIR__ . '/config/database.php';
+        try {
+            $db = getDBConnection();
+            $name = trim($_POST['name'] ?? '');
+            $email = trim($_POST['email'] ?? '');
+            $phone = trim($_POST['phone'] ?? '');
+            $comment = trim($_POST['message'] ?? '');
+            if ($name === '' || $email === '' || $comment === '') {
+                $messageStatus = ['ok' => false, 'msg' => 'Veuillez remplir le nom, l\'email et le message.'];
+            } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $messageStatus = ['ok' => false, 'msg' => 'Email invalide.'];
+            } else {
+                $stmt = $db->prepare('INSERT INTO customer_messages (client_name, client_email, client_phone, comment, created_at) VALUES (?, ?, ?, ?, NOW())');
+                $stmt->execute([$name, $email, $phone, $comment]);
+                $messageStatus = ['ok' => true, 'msg' => 'Message envoyé. Merci!'];
+            }
+        } catch (Exception $e) {
+            $messageStatus = ['ok' => false, 'msg' => 'Erreur serveur.'];
+        }
+    }
     ?>
     <!-- Header / Navbar -->
     <header class="header" id="header">
@@ -44,7 +68,7 @@
                         <svg viewBox="0 0 24 24">
                             <path
                                 d="M7 4h-2l-1 2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96a2 2 0 1 0 2-2h6a2 2 0 1 0 2 2c0-.35-.09-.68-.25-.96l-1.1-2.04h-6.45l.75-1.35h5.95c.75 0 1.41-.41 1.75-1.03l3.24-5.87h-14.3z" />
-                                
+
                         </svg>
                         <span class="cart-count"><?= (int) $cartCount ?></span>
                     </div>
@@ -82,63 +106,44 @@
                 <p class="section-subtitle">Explorez nos univers dédiés à chaque pièce de votre maison</p>
             </div>
 
-            <div class="categories-grid">
-                <a href="produits.php">
-                    <div class="category-card" data-aos="fade-up">
-                        <div class="category-image">
-                            <img src="https://images.pexels.com/photos/1350789/pexels-photo-1350789.jpeg?auto=compress&cs=tinysrgb&w=800"
-                                alt="Salon">
-                            <div class="category-overlay">
-                                <h3>Salon</h3>
-                                <p>Canapés & Tables basses</p>
-                                <span class="category-link">Explorer →</span>
-                            </div>
-                        </div>
-                    </div>
-                </a>
+            <?php
+            require_once __DIR__ . '/config/database.php';
+            try {
+                $db = getDBConnection();
+                $catStmt = $db->query("SELECT id, name, slug, image_path, description FROM categories ORDER BY name");
+                $categories = $catStmt->fetchAll(PDO::FETCH_ASSOC);
+            } catch (Exception $e) {
+                $categories = [];
+            }
 
-                <a href="produits.php">
-                    <div class="category-card" data-aos="fade-up" data-aos-delay="100">
-                        <div class="category-image">
-                            <img src="https://images.pexels.com/photos/1743231/pexels-photo-1743231.jpeg?auto=compress&cs=tinysrgb&w=800"
-                                alt="Chambre">
-                            <div class="category-overlay">
-                                <h3>Chambre</h3>
-                                <p>Lits & Dressings</p>
-                                <span class="category-link">Explorer →</span>
+            if (empty($categories)) : ?>
+                <div class="categories-grid">
+                    <p>Aucune catégorie disponible pour le moment.</p>
+                </div>
+            <?php else: ?>
+                <div class="categories-grid">
+                    <?php foreach ($categories as $i => $cat):
+                        $img = !empty($cat['image_path']) ? $cat['image_path'] : 'assets/images/default_category.jpg';
+                        $name = htmlspecialchars($cat['name']);
+                        $desc = !empty($cat['description']) ? htmlspecialchars($cat['description']) : '';
+                        $link = 'produits.php?category_id=' . (int) $cat['id'];
+                        $delay = ($i % 4) * 100;
+                    ?>
+                        <a href="<?= htmlspecialchars($link) ?>">
+                            <div class="category-card" data-aos="fade-up" data-aos-delay="<?= $delay ?>">
+                                <div class="category-image">
+                                    <img src="<?= htmlspecialchars($img) ?>" alt="<?= $name ?>">
+                                    <div class="category-overlay">
+                                        <h3><?= $name ?></h3>
+                                        <p><?= $desc ?></p>
+                                        <span class="category-link">Explorer →</span>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                </a>
-
-                <a href="produits.php">
-                    <div class="category-card" data-aos="fade-up" data-aos-delay="200">
-                        <div class="category-image">
-                            <img src="https://images.pexels.com/photos/1457842/pexels-photo-1457842.jpeg?auto=compress&cs=tinysrgb&w=800"
-                                alt="Salle à manger">
-                            <div class="category-overlay">
-                                <h3>Salle à manger</h3>
-                                <p>Tables & Chaises</p>
-                                <span class="category-link">Explorer →</span>
-                            </div>
-                        </div>
-                    </div>
-                </a>
-
-                <a href="produits.php">
-                    <div class="category-card" data-aos="fade-up" data-aos-delay="300">
-                        <div class="category-image">
-                            <img src="https://images.pexels.com/photos/667838/pexels-photo-667838.jpeg?auto=compress&cs=tinysrgb&w=800"
-                                alt="Bureau">
-                            <div class="category-overlay">
-                                <h3>Bureau</h3>
-                                <p>Bureaux & Rangements</p>
-                                <span class="category-link">Explorer →</span>
-                            </div>
-                        </div>
-                    </div>
-                </a>
-            </div>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
         </div>
     </section>
 
@@ -151,48 +156,48 @@
             </div>
 
             <div class="products-grid">
-                        <?php
-                        // Fetch 4 random featured products
-                        require_once __DIR__ . '/config/database.php';
-                        try {
-                            $db = getDBConnection();
-                            $sql = "SELECT p.*, 
+                <?php
+                // Fetch 4 random featured products
+                require_once __DIR__ . '/config/database.php';
+                try {
+                    $db = getDBConnection();
+                    $sql = "SELECT p.*, 
                                 (SELECT MIN(pd.price) FROM product_dimensions pd WHERE pd.product_id = p.id) AS min_price,
-                                (SELECT di.image_path FROM dimension_images di JOIN product_dimensions pd ON di.dimension_id = pd.id WHERE pd.product_id = p.id ORDER BY di.is_primary DESC, di.id LIMIT 1) AS primary_image
+                                (SELECT pi.image_path FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.id LIMIT 1) AS primary_image
                                 FROM products p ORDER BY RAND() LIMIT 3";
-                            $stmt = $db->query($sql);
-                            $featured = $stmt->fetchAll();
-                        } catch (Exception $e) {
-                            $featured = [];
-                        }
+                    $stmt = $db->query($sql);
+                    $featured = $stmt->fetchAll();
+                } catch (Exception $e) {
+                    $featured = [];
+                }
 
-                        if (empty($featured)) {
-                            echo '<p>Aucun produit vedette pour le moment.</p>';
-                        } else {
-                            foreach ($featured as $i => $prod):
-                                $img = !empty($prod['primary_image']) ? $prod['primary_image'] : 'assets/images/default_product.jpg';
-                                $price = isset($prod['min_price']) ? number_format($prod['min_price'], 0, ',', ' ') . ' DA' : '';
-                                $name = htmlspecialchars($prod['name']);
-                                $desc = !empty($prod['description']) ? htmlspecialchars($prod['description']) : '';
-                                $link = 'produit.php?id=' . (int)$prod['id'];
+                if (empty($featured)) {
+                    echo '<p>Aucun produit vedette pour le moment.</p>';
+                } else {
+                    foreach ($featured as $i => $prod):
+                        $img = !empty($prod['primary_image']) ? $prod['primary_image'] : 'assets/images/default_product.jpg';
+                        $price = isset($prod['min_price']) ? number_format($prod['min_price'], 0, ',', ' ') . ' DA' : '';
+                        $name = htmlspecialchars($prod['name']);
+                        $desc = !empty($prod['description']) ? htmlspecialchars($prod['description']) : '';
+                        $link = 'produit.php?id=' . (int) $prod['id'];
                         ?>
-                            <div class="product-card" data-aos="fade-up" data-aos-delay="<?= ($i % 4) * 100 ?>">
-                                <div class="product-image">
-                                    <img src="<?= htmlspecialchars($img) ?>" alt="<?= $name ?>">
-                                </div>
-                                <div class="product-info">
-                                    <h3 class="product-name"><?= $name ?></h3>
-                                    <p class="product-description"><?= $desc ?></p>
-                                    <div class="product-footer">
-                                        <span class="product-price"><?= $price ?></span>
-                                        <a href="<?= $link ?>"><button class="btn btn-secondary">Voir le produit</button></a>
-                                    </div>
+                        <div class="product-card" data-aos="fade-up" data-aos-delay="<?= ($i % 4) * 100 ?>">
+                            <div class="product-image">
+                                <img src="<?= htmlspecialchars($img) ?>" alt="<?= $name ?>">
+                            </div>
+                            <div class="product-info">
+                                <h3 class="product-name"><?= $name ?></h3>
+                                <p class="product-description"><?= $desc ?></p>
+                                <div class="product-footer">
+                                    <span class="product-price"><?= $price ?></span>
+                                    <a href="<?= $link ?>"><button class="btn btn-secondary">Voir le produit</button></a>
                                 </div>
                             </div>
+                        </div>
                         <?php
-                            endforeach;
-                        }
-                        ?>
+                    endforeach;
+                }
+                ?>
             </div>
         </div>
     </section>
@@ -289,17 +294,47 @@
         </div>
     </section>
 
+    <!-- Contact Section -->
+    <section class="contact-section section" id="contact">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Contactez-nous</h2>
+                <p class="section-subtitle">Une question ? Un projet personnalisé ? Envoyez-nous un message.</p>
+            </div>
+            <div class="contact-grid">
+                <div class="contact-form">
+                    <?php if (isset($messageStatus)): ?>
+                        <div class="alert <?= $messageStatus['ok'] ? 'alert-success' : 'alert-error' ?>">
+                            <?= htmlspecialchars($messageStatus['msg']) ?></div>
+                    <?php endif; ?>
+                    <form method="post" class="form-contact">
+                        <input type="hidden" name="send_message" value="1">
+                        <div class="form-row"><input type="text" name="name" placeholder="Votre nom" required></div>
+                        <div class="form-row"><input type="email" name="email" placeholder="Votre email" required></div>
+                        <div class="form-row"><input type="text" name="phone" placeholder="Téléphone (optionnel)"></div>
+                        <div class="form-row"><textarea name="message" placeholder="Votre message" required
+                                rows="5"></textarea></div>
+                        <div class="form-row" style="text-align:right;"><button class="btn"
+                                type="submit">Envoyer</button></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Footer -->
     <footer class="footer" id="contact">
         <div class="container">
             <div class="footer-content">
                 <div class="footer-col">
                     <div class="footer-logo">
-                        <a href="index.php"><img src="assets/images/LOGO-blanc.png" alt="Ama Meuble Logo" class="logo-img"></a>
+                        <a href="index.php"><img src="assets/images/LOGO-blanc.png" alt="Ama Meuble Logo"
+                                class="logo-img"></a>
                     </div>
                     <p class="footer-description">L'élégance du bois au service de votre bien-être</p>
                     <div class="footer-social">
-                        <a href="https://www.facebook.com/profile.php?id=61584495925564" class="social-link" aria-label="Facebook">
+                        <a href="https://www.facebook.com/profile.php?id=61584495925564" class="social-link"
+                            aria-label="Facebook">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
                                 xmlns="http://www.w3.org/2000/svg">
                                 <path
@@ -319,14 +354,16 @@
                                     stroke-linecap="round" stroke-linejoin="round" />
                             </svg>
                         </a>
-<a href="https://www.tiktok.com/@ama.meuble" class="social-link" aria-label="TikTok" target="_blank" rel="noopener noreferrer">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-        <path d="M16.7 5.3c-.9-1-1.4-2.3-1.4-3.7h-3.1v13.2c0 1.5-1.2 2.7-2.7 2.7s-2.7-1.2-2.7-2.7 
+                        <a href="https://www.tiktok.com/@ama.meuble" class="social-link" aria-label="TikTok"
+                            target="_blank" rel="noopener noreferrer">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"
+                                fill="currentColor">
+                                <path d="M16.7 5.3c-.9-1-1.4-2.3-1.4-3.7h-3.1v13.2c0 1.5-1.2 2.7-2.7 2.7s-2.7-1.2-2.7-2.7 
         1.2-2.7 2.7-2.7c.3 0 .6 0 .9.1V8.1c-.3 0-.6-.1-.9-.1-3.2 0-5.8 2.6-5.8 5.8 
         0 3.2 2.6 5.8 5.8 5.8 3.2 0 5.8-2.6 5.8-5.8V9.4c1.1.8 2.4 1.2 3.8 1.2V7.5
-        c-1.2 0-2.3-.5-3.1-1.2z"/>
-    </svg>
-</a>
+        c-1.2 0-2.3-.5-3.1-1.2z" />
+                            </svg>
+                        </a>
                     </div>
                 </div>
 
@@ -344,11 +381,16 @@
                 <div class="footer-col">
                     <h4 class="footer-title">Informations</h4>
                     <ul class="footer-links">
-                        <li><a href="#">Livraison</a></li>
-                        <li><a href="#">Retours</a></li>
-                        <li><a href="#">Garantie</a></li>
-                        <li><a href="#">FAQ</a></li>
-                        <li><a href="#">Mentions légales</a></li>
+                        <li><a href="#apropos">Livraison</a></li>
+                        <li><a href="#apropos">Retours</a></li>
+                        <li><a href="#apropos">FAQ</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4 class="footer-title">Contact</h4>
+                    <ul class="footer-links">
+                        <li><a href="#accueil">05 55 55 55 55</a></li>
+                        <li><a href="#produits"></a>amameuble@gmail.com</li>
                     </ul>
                 </div>
             </div>

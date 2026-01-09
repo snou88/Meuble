@@ -758,6 +758,17 @@ ul {
     height: 240px;
 }
 
+/* CONTACT SECTION */
+.contact-section { padding: 60px 0; background: linear-gradient(180deg, #fafafa 0%, #fff 100%); }
+.contact-grid { display:flex; gap:30px; align-items:flex-start; }
+.contact-info { flex:1; padding:20px; background:#fff; border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,0.04);} 
+.contact-form { flex:1.2; background:#fff; padding:20px; border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,0.04);} 
+.contact-form .form-row { margin-bottom:12px; }
+.form-contact input[type="text"], .form-contact input[type="email"], .form-contact textarea { width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; }
+.form-contact button { padding:10px 18px; border-radius:6px; background:#C9A24D; color:#fff; border:none; cursor:pointer; }
+.form-contact button:hover { background:#b68f3f; }
+@media (max-width: 900px) { .contact-grid { flex-direction:column; } }
+
 .gallery-item.large {
     grid-column: span 2;
     height: 320px;

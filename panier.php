@@ -251,7 +251,8 @@
                             <?php foreach ($wilayas as $w): ?>
                                 <option value="<?= (int) $w['id'] ?>" data-price="<?= (int) $w['domicile_price'] ?>">
                                     <?= htmlspecialchars($w['name']) ?> -
-                                    <?= number_format($w['domicile_price'], 0, ',', ' ') ?> DA</option>
+                                    <?= number_format($w['domicile_price'], 0, ',', ' ') ?> DA
+                                </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -272,7 +273,8 @@
                     <div style="display:flex; justify-content:space-between;"><span>Livraison</span><span
                             id="sum_shipping"><?= number_format($shipping, 0, ',', ' ') ?> DA</span></div>
                     <div style="display:flex; justify-content:space-between; font-weight:700; margin-top:6px">
-                        <span>Total</span><span id="sum_total"><?= number_format($total, 0, ',', ' ') ?> DA</span></div>
+                        <span>Total</span><span id="sum_total"><?= number_format($total, 0, ',', ' ') ?> DA</span>
+                    </div>
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" id="checkoutCancel">Annuler</button>
@@ -356,6 +358,13 @@
                         <li><a href="#">Garantie</a></li>
                         <li><a href="#">FAQ</a></li>
                         <li><a href="#">Mentions légales</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4 class="footer-title">Contact</h4>
+                    <ul class="footer-links">
+                        <li><a href="#accueil">05 55 55 55 55</a></li>
+                        <li><a href="#produits"></a>amameuble@gmail.com</li>
                     </ul>
                 </div>
             </div>

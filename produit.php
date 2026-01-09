@@ -33,8 +33,8 @@ $dimStmt = $db->prepare('SELECT * FROM product_dimensions WHERE product_id = :id
 $dimStmt->execute([':id' => $productId]);
 $dimensions = $dimStmt->fetchAll();
 
-// Fetch images (grouped by dimension)
-$imgStmt = $db->prepare('SELECT di.* FROM dimension_images di JOIN product_dimensions pd ON di.dimension_id = pd.id WHERE pd.product_id = :id ORDER BY di.is_primary DESC, di.id');
+// Fetch product-level images (order by id — no is_primary in new schema)
+$imgStmt = $db->prepare('SELECT pi.* FROM product_images pi WHERE pi.product_id = :id ORDER BY pi.id');
 $imgStmt->execute([':id' => $productId]);
 $images = $imgStmt->fetchAll();
 
@@ -43,10 +43,13 @@ $colorStmt = $db->prepare('SELECT * FROM product_colors WHERE product_id = :id')
 $colorStmt->execute([':id' => $productId]);
 $colors = $colorStmt->fetchAll();
 
-// Organize images by dimension
-$imagesByDim = [];
-foreach ($images as $img) {
-    $imagesByDim[$img['dimension_id']][] = $img;
+// Material catalogs (nuanciers)
+$matStmt = $db->prepare('SELECT * FROM material_color_catalogs WHERE product_id = :id ORDER BY material_type');
+$matStmt->execute([':id' => $productId]);
+$materialCatalogs = $matStmt->fetchAll(PDO::FETCH_ASSOC);
+$materialByType = [];
+foreach ($materialCatalogs as $m) {
+    $materialByType[strtolower($m['material_type'])] = $m; // e.g. 'tissu' or 'bois'
 }
 
 // All image paths (for fallback)
@@ -54,14 +57,8 @@ $allImagePaths = array_map(function ($i) {
     return $i['image_path'];
 }, $images);
 
-// Default selected dimension id (first one) and initial thumbnails
-$defaultDimId = !empty($dimensions) ? $dimensions[0]['id'] : (isset($images[0]['dimension_id']) ? $images[0]['dimension_id'] : null);
-$initialThumbnails = [];
-if ($defaultDimId !== null && isset($imagesByDim[$defaultDimId])) {
-    $initialThumbnails = $imagesByDim[$defaultDimId];
-} else {
-    $initialThumbnails = $images;
-}
+// Initial thumbnails (product-level images)
+$initialThumbnails = $images;
 
 // Organize colors by type
 $fabricColors = array_values(array_filter($colors, function ($c) {
@@ -107,131 +104,169 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
     <link rel="stylesheet" href="assets/css/product.css">
     <script src="assets/js/script.js"></script>
     <script>
-        // Product page interactions
+        // Product page interactions (cleaned up)
         document.addEventListener('DOMContentLoaded', function () {
-            const thumbnails = document.querySelectorAll('#thumbnails img.thumb');
             const mainImage = document.getElementById('mainImage');
+            const thumbnails = document.querySelectorAll('#thumbnails img.thumb');
             thumbnails.forEach(t => t.addEventListener('click', () => { mainImage.src = t.dataset.src; }));
 
-            // Dimensions change price and images
-            const dimButtons = document.querySelectorAll('#dimensionOptions .option-btn');
-            const priceEl = document.getElementById('price');
-            const imagesByDim = <?= json_encode(array_map(function ($arr) {
-                return array_map(function ($i) {
-                    return $i['image_path'];
-                }, $arr);
-            }, $imagesByDim)) ?>;
-            const allImages = <?= json_encode($allImagePaths) ?>;
+            // Quantity limiting based on default dimension stock
+            const qtySpan = document.getElementById('quantity');
+            const increaseBtn = document.getElementById('increaseQty');
+            const decreaseBtn = document.getElementById('decreaseQty');
+            const addToCartBtn = document.getElementById('addToCart');
 
-            function renderThumbnails(imagesArr) {
-                const container = document.getElementById('thumbnails');
-                container.innerHTML = '';
-                if (!imagesArr || imagesArr.length === 0) return;
-                imagesArr.forEach((src, idx) => {
-                    const div = document.createElement('div');
-                    div.className = 'thumbnail' + (idx === 0 ? ' active' : '');
-                    div.dataset.index = idx;
-                    const img = document.createElement('img');
-                    img.className = 'thumb';
-                    img.src = src;
-                    img.dataset.src = src;
-                    img.alt = '<?= htmlspecialchars($product['name']) ?>';
-                    div.appendChild(img);
-                    div.addEventListener('click', function () {
-                        document.querySelectorAll('#thumbnails .thumbnail').forEach(t => t.classList.remove('active'));
-                        div.classList.add('active');
-                        mainImage.src = src;
-                    });
-                    container.appendChild(div);
-                });
+            // Dimensions data from server
+            const dimensionsData = <?= json_encode($dimensions, JSON_UNESCAPED_UNICODE) ?>;
+            let currentDimensionId = dimensionsData.length ? parseInt(dimensionsData[0].id) : 0;
+
+            function getDimensionById(id) {
+                return dimensionsData.find(d => parseInt(d.id) === parseInt(id)) || null;
             }
 
-            // Make function globally accessible
-            window.attachInitialThumbnailHandlers = function () {
-                document.querySelectorAll('#thumbnails .thumbnail').forEach(el => {
-                    el.addEventListener('click', function () {
-                        document.querySelectorAll('#thumbnails .thumbnail').forEach(t => t.classList.remove('active'));
-                        this.classList.add('active');
-                        const img = this.querySelector('img.thumb');
-                        if (img) mainImage.src = img.dataset.src || img.src;
-                    });
-                });
-            };
+            function getCurrentDimension() {
+                return getDimensionById(currentDimensionId) || null;
+            }
 
-            // On dimension click: update price and images
-            dimButtons.forEach(btn => {
-                btn.addEventListener('click', function () {
-                    dimButtons.forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
-                    const price = parseFloat(this.dataset.price) || 0;
-                    priceEl.textContent = 'À partir de ' + price.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' DA';
+            function updateIncreaseState() {
+                const current = parseInt(qtySpan.textContent);
+                const cd = getCurrentDimension();
+                const stock = cd ? parseInt(cd.stock) : 0;
+                const isUnlimited = cd ? (parseInt(cd.stock) >= 9999999) : false;
+                if (!isUnlimited && stock > 0) {
+                    increaseBtn.disabled = current >= stock;
+                } else {
+                    increaseBtn.disabled = false;
+                }
+            }
 
-                    const dimId = this.dataset.dimensionId;
-                    const imgs = imagesByDim[dimId] && imagesByDim[dimId].length ? imagesByDim[dimId] : allImages;
-                    renderThumbnails(imgs);
-                    // set main image to first of new thumbnails
-                    if (imgs && imgs.length) mainImage.src = imgs[0];
-                });
+            increaseBtn.addEventListener('click', () => {
+                let v = parseInt(qtySpan.textContent);
+                const cd = getCurrentDimension();
+                const stock = cd ? parseInt(cd.stock) : 0;
+                const isUnlimited = cd ? (parseInt(cd.stock) >= 9999999) : false;
+                if (!isUnlimited && stock > 0 && v >= stock) return;
+                qtySpan.textContent = v + 1;
+                updateIncreaseState();
             });
+            decreaseBtn.addEventListener('click', () => { let v = parseInt(qtySpan.textContent); if (v > 1) qtySpan.textContent = v - 1; updateIncreaseState(); });
 
-            // Color selections: single-select per group, keyboard accessible
+            updateIncreaseState();
+
+            // Color groups (single select)
             function setupColorGroup(containerSelector) {
                 const group = document.querySelectorAll(containerSelector + ' .color-option');
                 group.forEach(el => {
                     el.addEventListener('click', function () {
-                        // toggle: if already active, deselect; otherwise select this and deselect others
                         const isActive = el.classList.contains('active');
                         group.forEach(x => { x.classList.remove('active'); x.setAttribute('aria-pressed', 'false'); });
                         if (!isActive) { el.classList.add('active'); el.setAttribute('aria-pressed', 'true'); }
                     });
                     el.addEventListener('keydown', function (e) {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            el.click();
-                        }
+                        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click(); }
                     });
                 });
             }
-
             setupColorGroup('#fabricColorOptions');
             setupColorGroup('#woodColorOptions');
 
-            // Quantity
-            const qtySpan = document.getElementById('quantity');
-            document.getElementById('increaseQty').addEventListener('click', () => { qtySpan.textContent = parseInt(qtySpan.textContent) + 1; });
-            document.getElementById('decreaseQty').addEventListener('click', () => { let v = parseInt(qtySpan.textContent); if (v > 1) qtySpan.textContent = v - 1; });
+            // Dimension UI: the blocks are informational. When multiple dimensions exist the
+            // dropdown controls selection; blocks are shown only for the currently selected dimension.
+            const dimensionBlocks = Array.from(document.querySelectorAll('.dimension-info'));
+            function showOnlySelectedBlock(id) {
+                dimensionBlocks.forEach(b => {
+                    if (parseInt(b.getAttribute('data-dimension-id')) === parseInt(id)) {
+                        b.style.display = '';
+                        b.classList.add('active');
+                    } else {
+                        // hide informational blocks when more than one dimension
+                        if (dimensionBlocks.length > 1) b.style.display = 'none';
+                        b.classList.remove('active');
+                    }
+                });
+            }
 
-            // Add to cart (real: call API)
-            document.getElementById('addToCart').addEventListener('click', async () => {
-                const btn = document.getElementById('addToCart');
-                btn.disabled = true;
-                const selectedDim = document.querySelector('#dimensionOptions .option-btn.active');
-                if (!selectedDim) { alert('Veuillez sélectionner une dimension'); btn.disabled = false; return; }
+            // Select change handling
+            const dimensionSelect = document.getElementById('dimensionSelect');
+            if (dimensionSelect) {
+                dimensionSelect.addEventListener('change', function () {
+                    const val = parseInt(this.value);
+                    if (!val) return;
+                    currentDimensionId = val;
+                    showOnlySelectedBlock(currentDimensionId);
+                    const hidden = document.getElementById('default_dimension_id');
+                    if (hidden) hidden.value = currentDimensionId;
+                    syncPriceAndStock();
+                });
+            }
+
+            function syncPriceAndStock() {
+                const cd = getCurrentDimension();
+                const priceEl = document.getElementById('currentPrice');
+                const oldEl = document.getElementById('oldPrice');
+                const promoEl = document.getElementById('promoPercent');
+                if (!cd) return;
+                const price = parseFloat(cd.price) || 0;
+                const priceNew = (cd.price_new !== null && cd.price_new !== '') ? parseFloat(cd.price_new) : null;
+                const promo = cd.promo_percent ? parseInt(cd.promo_percent) : 0;
+                if (priceNew !== null) {
+                    oldEl.style.display = '';
+                    oldEl.textContent = Number(price).toLocaleString('fr-FR', {maximumFractionDigits:0}) + ' DA';
+                    if (promo) { promoEl.style.display = ''; promoEl.textContent = '-' + promo + '%'; }
+                    else { promoEl.style.display = 'none'; promoEl.textContent = ''; }
+                    priceEl.textContent = Number(priceNew).toLocaleString('fr-FR', {maximumFractionDigits:0}) + ' DA';
+                } else {
+                    oldEl.style.display = 'none'; oldEl.textContent = '';
+                    promoEl.style.display = 'none'; promoEl.textContent = '';
+                    priceEl.textContent = Number(price).toLocaleString('fr-FR', {maximumFractionDigits:0}) + ' DA';
+                }
+                // reset quantity to 1 and update increase state
+                qtySpan.textContent = '1';
+                updateIncreaseState();
+            }
+
+            // init selection: ensure only the selected block is visible
+            if (dimensionsData.length) {
+                showOnlySelectedBlock(currentDimensionId);
+            }
+            syncPriceAndStock();
+
+            // Material catalog thumbnails — click to open zoom modal
+            document.querySelectorAll('.material-thumb').forEach(t => {
+                t.addEventListener('click', function () {
+                    const src = this.dataset.src || this.src;
+                    const zm = document.getElementById('imageZoomModal');
+                    const zmImg = document.getElementById('zoomImage');
+                    zmImg.src = src;
+                    zm.style.display = 'flex';
+                });
+            });
+
+            // Close zoom
+            const zm = document.getElementById('imageZoomModal');
+            if (zm) zm.addEventListener('click', e => { if (e.target === zm || e.target.id === 'zoomClose') zm.style.display = 'none'; });
+
+            // Add to cart
+            addToCartBtn.addEventListener('click', async () => {
+                addToCartBtn.disabled = true;
                 const selectedFabric = document.querySelector('#fabricColorOptions .color-option.active');
                 const selectedWood = document.querySelector('#woodColorOptions .color-option.active');
-                // Require both fabric and wood selection
                 const missing = [];
                 if (!selectedFabric) missing.push('la couleur du tissu');
                 if (!selectedWood) missing.push('la couleur du bois');
-                if (missing.length > 0) {
-                    alert('Veuillez sélectionner ' + missing.join(' et ') + '.');
-                    // focus first missing group for accessibility
-                    if (!selectedFabric) {
-                        const first = document.querySelector('#fabricColorOptions .color-option');
-                        if (first) first.focus();
-                    } else if (!selectedWood) {
-                        const firstw = document.querySelector('#woodColorOptions .color-option');
-                        if (firstw) firstw.focus();
-                    }
-                    btn.disabled = false;
-                    return;
-                }
+                if (missing.length > 0) { alert('Veuillez sélectionner ' + missing.join(' et ') + '.'); addToCartBtn.disabled = false; return; }
+
                 const qty = parseInt(qtySpan.textContent);
+                // enforce stock on submit as well
+                const cd = getCurrentDimension();
+                const stock = cd ? parseInt(cd.stock) : 0;
+                const isUnlimited = cd ? (parseInt(cd.stock) >= 9999999) : false;
+                if (!isUnlimited && stock > 0 && qty > stock) { alert('Quantité supérieure au stock disponible'); addToCartBtn.disabled = false; return; }
 
                 const payload = {
                     action: 'add',
                     productId: <?= (int) $productId ?>,
-                    dimensionId: selectedDim ? selectedDim.dataset.dimensionId : null,
+                    dimensionId: currentDimensionId || null,
                     fabric: selectedFabric ? selectedFabric.dataset.colorName : null,
                     wood: selectedWood ? selectedWood.dataset.woodName : null,
                     qty: qty
@@ -240,21 +275,11 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
                 try {
                     const res = await fetch('cart.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                     const data = await res.json();
-                    if (data.success) {
-                        document.querySelectorAll('.cart-count').forEach(el => el.textContent = data.count);
-                        alert('Produit ajouté au panier');
-                        window.location.href = 'panier.php';
-                    } else {
-                        alert('Erreur: ' + (data.error || 'Impossible d\'ajouter au panier'));
-                    }
-                } catch (e) {
-                    alert('Erreur de communication');
-                }
-                btn.disabled = false;
+                    if (data && data.success) { document.querySelectorAll('.cart-count').forEach(el => el.textContent = data.count); window.location.href = 'panier.php'; }
+                    else alert('Erreur: ' + (data.error || 'Impossible d\'ajouter au panier'));
+                } catch (e) { alert('Erreur de communication'); }
+                addToCartBtn.disabled = false;
             });
-
-            // Attach handlers to thumbnails that were rendered server-side initially
-            window.attachInitialThumbnailHandlers();
         });
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -315,8 +340,7 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
                 <div class="thumbnails" id="thumbnails">
                     <?php if (!empty($initialThumbnails)): ?>
                         <?php foreach ($initialThumbnails as $i => $img): ?>
-                            <div class="thumbnail <?= $i === 0 ? 'active' : '' ?>"
-                                data-dimension-id="<?= (int) $img['dimension_id'] ?>">
+                            <div class="thumbnail <?= $i === 0 ? 'active' : '' ?>">
                                 <img src="<?= htmlspecialchars($img['image_path']) ?>"
                                     alt="<?= htmlspecialchars($product['name']) ?>" class="thumb"
                                     data-src="<?= htmlspecialchars($img['image_path']) ?>">
@@ -328,17 +352,51 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
 
             <div class="product-details">
                 <h1><?= htmlspecialchars($product['name']) ?></h1>
-                <p class="price" id="price">À partir de <?= number_format($minPrice, 2, ',', ' ') ?> DA</p>
+                <p class="price" id="price">
+                    <span id="oldPrice" style="color:#888;text-decoration:line-through;display:none;margin-right:8px;"></span>
+                    <span id="promoPercent" style="color:#c00;display:none;margin-right:8px;"></span>
+                    <span id="currentPrice" style="font-weight:600;"><?= number_format($minPrice, 2, ',', ' ') ?> DA</span>
+                </p>
 
                 <div class="option-group">
                     <h3>Dimensions</h3>
-                    <div class="options" id="dimensionOptions">
+                    <div class="dimensions-info">
                         <?php if (!empty($dimensions)): ?>
+                            <?php if (count($dimensions) > 1): ?>
+                                <label for="dimensionSelect">Choisir la dimension</label>
+                                <select id="dimensionSelect" name="dimension" style="width:100%;margin:8px 0 12px 0;padding:8px;">
+                                    <?php foreach ($dimensions as $dopt): ?>
+                                        <option value="<?= (int)$dopt['id'] ?>" <?= ((int)$dopt['id'] === (int)($dimensions[0]['id'] ?? 0)) ? 'selected' : '' ?>><?= htmlspecialchars($dopt['label']) ?> — <?= number_format($dopt['price'], 0, ',', ' ') ?> DA<?= (isset($dopt['price_new']) && $dopt['price_new'] !== null && $dopt['price_new'] !== '') ? ' (Promo ' . ((int)$dopt['promo_percent']) . '%)' : '' ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            <?php endif; ?>
                             <?php foreach ($dimensions as $i => $d): ?>
-                                <button class="option-btn <?= $i === 0 ? 'active' : '' ?>"
-                                    data-dimension-id="<?= (int) $d['id'] ?>"
-                                    data-price="<?= htmlspecialchars($d['price']) ?>"><?= htmlspecialchars($d['label']) ?></button>
+                                <?php
+                                    $hiddenStyle = (count($dimensions) > 1 && $i !== 0) ? 'display:none;' : '';
+                                ?>
+                                <div class="dimension-info"
+                                     style="<?= $hiddenStyle ?>"
+                                     data-dimension-id="<?= (int) $d['id'] ?>"
+                                     data-price="<?= htmlspecialchars($d['price']) ?>"
+                                     data-price-new="<?= isset($d['price_new']) ? htmlspecialchars($d['price_new']) : '' ?>"
+                                     data-promo="<?= isset($d['promo_percent']) ? (int) $d['promo_percent'] : 0 ?>"
+                                     data-stock="<?= (int) $d['stock'] ?>">
+                                    <strong><?= htmlspecialchars($d['label']) ?></strong>
+                                    <div class="dim-values">
+                                        <span>Largeur: <?= (int) $d['width_cm'] ?> cm</span>
+                                        <span>Hauteur: <?= (int) $d['height_cm'] ?> cm</span>
+                                        <span>Profondeur: <?= (int) ($d['depth_cm'] ?? 0) ?> cm</span>
+                                    </div>
+                                    <div class="dim-stock">
+                                        <?php if ((int) $d['stock'] >= 9999999): ?>
+                                            <span class="stock-unlimited">Stock: Illimité</span>
+                                        <?php else: ?>
+                                            <span>Stock: <?= (int) $d['stock'] ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
                             <?php endforeach; ?>
+                            <input type="hidden" id="default_dimension_id" value="<?= (int) ($dimensions[0]['id'] ?? 0) ?>">
                         <?php else: ?>
                             <div>Aucune dimension disponible</div>
                         <?php endif; ?>
@@ -347,35 +405,57 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
 
                 <div class="option-group">
                     <h3>Couleur du tissu</h3>
-                    <div class="options" id="fabricColorOptions">
-                        <?php if (!empty($fabricColors)): ?>
-                            <?php foreach ($fabricColors as $c): ?>
-                                <button class="color-option" data-color-name="<?= htmlspecialchars($c['color_name']) ?>"
-                                    data-color-code="<?= htmlspecialchars($c['color_code']) ?>"
-                                    title="<?= htmlspecialchars($c['color_name']) ?>"
-                                    style="background-color: <?= htmlspecialchars($c['color_code'] ?: '#ccc') ?>;" tabindex="0"
-                                    role="button" aria-pressed="false"></button>
-                            <?php endforeach; ?>
-                        <?php else: ?>
-                            <div>Aucune couleur tissu</div>
+                    <div style="display:flex; gap:12px; align-items:flex-start;">
+                        <div class="options" id="fabricColorOptions" style="flex:1;">
+                            <?php if (!empty($fabricColors)): ?>
+                                <?php foreach ($fabricColors as $c): ?>
+                                    <button class="color-option" data-color-name="<?= htmlspecialchars($c['color_name']) ?>"
+                                        data-color-code="<?= htmlspecialchars($c['color_code']) ?>"
+                                        title="<?= htmlspecialchars($c['color_name']) ?>"
+                                        style="background-color: <?= htmlspecialchars($c['color_code'] ?: '#ccc') ?>;"
+                                        tabindex="0" role="button" aria-pressed="false"></button>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <div>Aucune couleur tissu</div>
+                            <?php endif; ?>
+                        </div>
+                        <?php if (!empty($materialByType['tissu'])): ?>
+                            <div style="flex:0 0 120px; text-align:center;">
+                                <div style="font-size:12px;color:#666;margin-bottom:6px;">Matériaux</div>
+                                <img src="<?= htmlspecialchars($materialByType['tissu']['image_path']) ?>"
+                                    alt="Nuancier tissu" class="material-thumb"
+                                    style="width:120px;object-fit:cover;cursor:pointer;border:1px solid #ddd;border-radius:6px;"
+                                    data-src="<?= htmlspecialchars($materialByType['tissu']['image_path']) ?>">
+                            </div>
                         <?php endif; ?>
                     </div>
                 </div>
 
                 <div class="option-group">
                     <h3>Couleur des pieds</h3>
-                    <div class="options" id="woodColorOptions">
-                        <?php if (!empty($woodColors)): ?>
-                            <?php foreach ($woodColors as $c): ?>
-                                <button class="color-option" data-wood-name="<?= htmlspecialchars($c['color_name']) ?>"
-                                    data-wood-code="<?= htmlspecialchars($c['color_code']) ?>"
-                                    title="<?= htmlspecialchars($c['color_name']) ?>"
-                                    style="background-color: <?= htmlspecialchars($c['color_code'] ?: '#ccc') ?>; border:1px solid #ddd;"
-                                    tabindex="0" role="button" aria-pressed="false">
-                                </button>
-                            <?php endforeach; ?>
-                        <?php else: ?>
-                            <div>Aucune couleur bois</div>
+                    <div style="display:flex; gap:12px; align-items:flex-start;">
+                        <div class="options" id="woodColorOptions" style="flex:1;">
+                            <?php if (!empty($woodColors)): ?>
+                                <?php foreach ($woodColors as $c): ?>
+                                    <button class="color-option" data-wood-name="<?= htmlspecialchars($c['color_name']) ?>"
+                                        data-wood-code="<?= htmlspecialchars($c['color_code']) ?>"
+                                        title="<?= htmlspecialchars($c['color_name']) ?>"
+                                        style="background-color: <?= htmlspecialchars($c['color_code'] ?: '#ccc') ?>; border:1px solid #ddd;"
+                                        tabindex="0" role="button" aria-pressed="false">
+                                    </button>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <div>Aucune couleur bois</div>
+                            <?php endif; ?>
+                        </div>
+                        <?php if (!empty($materialByType['bois'])): ?>
+                            <div style="flex:0 0 120px; text-align:center;">
+                                <div style="font-size:12px;color:#666;margin-bottom:6px;">Matériaux</div>
+                                <img src="<?= htmlspecialchars($materialByType['bois']['image_path']) ?>"
+                                    alt="Nuancier bois" class="material-thumb"
+                                    style="width:120px;object-fit:cover;cursor:pointer;border:1px solid #ddd;border-radius:6px;"
+                                    data-src="<?= htmlspecialchars($materialByType['bois']['image_path']) ?>">
+                            </div>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -393,6 +473,17 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
                     <p><?= nl2br(htmlspecialchars($product['description'])) ?></p>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Image zoom modal -->
+    <div id="imageZoomModal" class="image-zoom-modal"
+        style="display:none;position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;z-index:9999;">
+        <div style="position:relative;max-width:90%;max-height:90%;">
+            <button id="zoomClose"
+                style="position:absolute;right:-36px;top:-36px;background:#fff;border-radius:50%;width:36px;height:36px;border:none;cursor:pointer;">✕</button>
+            <img id="zoomImage" src=""
+                style="max-width:100%;max-height:100%;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,0.5);">
         </div>
     </div>
     <!-- Footer -->
@@ -459,6 +550,13 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
                         <li><a href="#">Garantie</a></li>
                         <li><a href="#">FAQ</a></li>
                         <li><a href="#">Mentions légales</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4 class="footer-title">Contact</h4>
+                    <ul class="footer-links">
+                        <li><a href="#accueil">05 55 55 55 55</a></li>
+                        <li><a href="#produits"></a>amameuble@gmail.com</li>
                     </ul>
                 </div>
             </div>

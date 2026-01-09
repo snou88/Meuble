@@ -60,7 +60,6 @@ CREATE TABLE order_items (
   order_id INT NOT NULL,
   product_id INT NOT NULL,
   dimension_id INT NOT NULL,
-  dimension_label VARCHAR(50),
   tissu_color VARCHAR(50),
   bois_color VARCHAR(50),
   unit_price DECIMAL(10,2) NOT NULL,
@@ -69,7 +68,7 @@ CREATE TABLE order_items (
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
   FOREIGN KEY (product_id) REFERENCES products(id),
   FOREIGN KEY (dimension_id) REFERENCES product_dimensions(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ;
 
 INSERT INTO products (name, description)
 VALUES ('Pouf Confort', 'Pouf moderne en tissu premium');
