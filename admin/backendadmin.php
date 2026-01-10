@@ -57,6 +57,17 @@ try {
     // If the table doesn't exist yet or other error, ignore - the dump handles schema
 }
 
+// Migration: ensure orders has is_seen column so admins can track unseen orders
+try {
+    $col = $pdo->query("SHOW COLUMNS FROM orders LIKE 'is_seen'")->fetch();
+    if (!$col) {
+        // safe add column
+        $pdo->exec("ALTER TABLE orders ADD COLUMN is_seen TINYINT(1) NOT NULL DEFAULT 0");
+    }
+} catch (Exception $e) {
+    // ignore: older installs without orders table will fail here - that's fine
+}
+
 // Helper: upload an image file and return relative path or false
 function uploadImageFile($tmp, $origName, $prefix = 'img_') {
     global $uploadDir;
@@ -853,9 +864,28 @@ if (isset($_POST['update_product'])) {
 if (isset($_POST['update_order_status'])) {
     try {
         $order_id = (int)($_POST['order_id'] ?? 0);
-        $status = trim($_POST['status'] ?? '');
+        $rawStatus = trim($_POST['status'] ?? '');
+        // Normalize status: lower, remove accents and non-alphanum (so 'Livré' or 'expédié' map)
+        $norm = mb_strtolower($rawStatus, 'UTF-8');
+        $norm = iconv('UTF-8', 'ASCII//TRANSLIT', $norm);
+        $norm = preg_replace('/[^a-z0-9 ]+/', '', $norm);
+        $norm = trim($norm);
+
+        // Map common French labels (and direct slugs) to canonical slugs
+        $map = [
+            'pending' => 'pending', 'en attente' => 'pending', 'enattente' => 'pending',
+            'processing' => 'processing', 'en traitement' => 'processing', 'entrattement' => 'processing',
+            'shipped' => 'shipped', 'expedie' => 'shipped', 'expedier' => 'shipped', 'expediee' => 'shipped',
+            'delivered' => 'delivered', 'livre' => 'delivered', 'livre' => 'delivered', 'livre' => 'delivered', 'livree' => 'delivered',
+            'canceled' => 'canceled', 'annule' => 'canceled', 'annulee' => 'canceled', 'annule' => 'canceled',
+            'archived' => 'archived', 'archive' => 'archived',
+        ];
+
+        $status = $map[$norm] ?? $norm;
+
         $allowed = ['pending','processing','shipped','delivered','canceled','archived'];
         if (!$order_id || !in_array($status, $allowed)) throw new Exception('Invalid parameters');
+
         // Fetch old status to detect transition
         $old = $db->prepare("SELECT status FROM orders WHERE id = ?"); $old->execute([$order_id]); $oldStatus = $old->fetchColumn();
 

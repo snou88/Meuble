@@ -214,6 +214,32 @@ ul {
     }
 }
 
+/* Dropdown for product type in header */
+.nav-item.nav-dropdown { position: relative; }
+.nav-item.nav-dropdown .nav-dropdown-content {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: #fff;
+    min-width: 160px;
+    box-shadow: var(--shadow-medium);
+    border-radius: 6px;
+    padding: 8px 0;
+    z-index: 1002;
+}
+.nav-item.nav-dropdown .nav-dropdown-content a {
+    display: block;
+    padding: 8px 14px;
+    color: var(--color-gray);
+    white-space: nowrap;
+}
+.nav-item.nav-dropdown .nav-dropdown-content a:hover { background: #f8f8f8; color: var(--color-wood-dark); }
+.nav-item.nav-dropdown:hover .nav-dropdown-content { display: block; }
+
+/* Inline badge style used in admin */
+.badge { background:#dc3545; color:#fff; padding:2px 8px; border-radius:12px; font-size:12px; margin-left:8px; }
+
 /* ============================================
    BUTTONS
    ============================================ */
@@ -761,7 +787,7 @@ ul {
 .contact-section { padding: 60px 0; background: linear-gradient(180deg, #fafafa 0%, #fff 100%); }
 .contact-grid { display:flex; gap:30px; align-items:flex-start; }
 .contact-info { flex:1; padding:20px; background:#fff; border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,0.04);} 
-.contact-form { flex:1.2; background:#fff; padding:20px; border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,0.04);} 
+.contact-form { flex:1.2; background:#fff; padding:20px; border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,0.04);width: 100%;} 
 .contact-form .form-row { margin-bottom:12px; }
 .form-contact input[type="text"], .form-contact input[type="email"], .form-contact textarea { width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; }
 .form-contact button { padding:10px 18px; border-radius:6px; background:#C9A24D; color:#fff; border:none; cursor:pointer; }

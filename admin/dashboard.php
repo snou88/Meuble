@@ -29,7 +29,8 @@ require 'backendadmin.php';
 
     <div class="dashboard-container">
         <div class="sidebar" id="sidebar">
-            <?php $messages_count = (int) ($unread_messages ?? $db->query("SELECT COUNT(*) FROM customer_messages")->fetchColumn()); ?>
+            <?php $messages_count = (int) ($unread_messages ?? $db->query("SELECT COUNT(*) FROM customer_messages")->fetchColumn());
+                $unseen_orders = (int) ($db->query("SELECT COALESCE(COUNT(*),0) FROM orders WHERE is_seen = 0")->fetchColumn()); ?>
             <div class="sidebar-nav">
                 <a href="dashboard.php"
                     class="sidebar-link <?= ($page ?? 'dashboard') === 'dashboard' ? 'active' : '' ?>">
@@ -39,7 +40,7 @@ require 'backendadmin.php';
                 <a href="dashboard.php?page=orders"
                     class="sidebar-link <?= ($page ?? '') === 'orders' ? 'active' : '' ?>">
                     <i class="fas fa-shopping-cart"></i>
-                    <span>Commandes</span>
+                    <span>Commandes <span class="badge" id="orders_unseen_badge"><?= (int) $unseen_orders ?></span></span>
                 </a>
                 <a href="dashboard.php?page=products"
                     class="sidebar-link <?= ($page ?? '') === 'products' ? 'active' : '' ?>">
@@ -2277,6 +2278,15 @@ require 'backendadmin.php';
                             <div class="detail-card"><div class="card-title"><i class="fas fa-money-bill-wave"></i> Récapitulatif</div><div class="detail-line"><span class="detail-label">Sous-total:</span><span class="detail-value">${parseFloat(subtotal).toFixed(2)} DA</span></div><div class="detail-line"><span class="detail-label">Livraison:</span><span class="detail-value">${parseFloat(delivery).toFixed(2)} DA</span></div><div class="detail-line"><span class="detail-label">Total:</span><span class="detail-value">${parseFloat(total).toFixed(2)} DA</span></div></div>
                         </div>`;
                     document.getElementById('clientDetailsModal').style.display = 'flex';
+                    // update unseen orders badge if backend provided count
+                    if (typeof data.unseen_count !== 'undefined') {
+                        const b = document.getElementById('orders_unseen_badge');
+                        if (b) {
+                            const val = parseInt(data.unseen_count) || 0;
+                            b.textContent = val;
+                            b.style.display = val > 0 ? 'inline-block' : 'none';
+                        }
+                    }
                 });
         }
 
@@ -2360,6 +2370,10 @@ require 'backendadmin.php';
             } else if (window.location.hash === '#archives') {
                 showTab('archives');
             }
+
+            // Hide orders badge if zero
+            const ordersBadge = document.getElementById('orders_unseen_badge');
+            if (ordersBadge && parseInt(ordersBadge.textContent || '0') <= 0) ordersBadge.style.display = 'none';
 
             // AJAX upload helper: upload new images from edit modal without full form submit
             const editInput = document.getElementById('edit_product_images');

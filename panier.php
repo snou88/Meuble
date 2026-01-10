@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" lang="ar">
 
 <head>
     <meta charset="UTF-8">
@@ -55,7 +55,13 @@
             <div class="nav-menu" id="navMenu">
                 <ul class="nav-list">
                     <li class="nav-item"><a href="index.php" class="nav-link active">Accueil</a></li>
-                    <li class="nav-item"><a href="produits.php" class="nav-link">Produits</a></li>
+                    <li class="nav-item nav-dropdown"><a href="produits.php" class="nav-link">Produits</a>
+                        <div class="nav-dropdown-content">
+                            <a href="produits.php">Tous</a>
+                            <a href="produits.php?type=made_to_order">Sur Commande</a>
+                            <a href="produits.php?type=available">Disponible</a>
+                        </div>
+                    </li>
                     <li class="nav-item"><a href="index.php#collections" class="nav-link">Collections</a></li>
                     <li class="nav-item"><a href="index.php#apropos" class="nav-link">À propos</a></li>
                     <li class="nav-item"><a href="index.php#contact" class="nav-link">Contact</a></li>
@@ -287,7 +293,13 @@
     <div class="modal-overlay" id="successOverlay">
         <div class="modal" role="dialog" aria-modal="true">
             <h3>Commande passée</h3>
-            <p id="successMessage">Merci ! Votre commande a été enregistrée.</p>
+            <p id="successMessage">
+                Nous vous remercions pour votre confiance. Votre commande a bien été reçue et sera
+                confirmée par notre équipe dans les plus brefs délais.
+                
+‎تم استلام طلبكم بنجاح. سيتواصل معكم فريقنا في أقرب وقت لتأكيد الطلب. شكرًا لثقتكم بنا
+
+                </p>
             <div class="modal-actions">
                 <button class="btn btn-primary" id="successOk">OK</button>
             </div>

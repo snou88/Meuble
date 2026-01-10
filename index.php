@@ -58,7 +58,13 @@
             <div class="nav-menu" id="navMenu">
                 <ul class="nav-list">
                     <li class="nav-item"><a href="#accueil" class="nav-link active">Accueil</a></li>
-                    <li class="nav-item"><a href="produits.php" class="nav-link">Produits</a></li>
+                    <li class="nav-item nav-dropdown"><a href="produits.php" class="nav-link">Produits</a>
+                        <div class="nav-dropdown-content">
+                            <a href="produits.php">Tous</a>
+                            <a href="produits.php?type=made_to_order">Sur Commande</a>
+                            <a href="produits.php?type=available">Disponible</a>
+                        </div>
+                    </li>
                     <li class="nav-item"><a href="#collections" class="nav-link">Collections</a></li>
                     <li class="nav-item"><a href="#apropos" class="nav-link">À propos</a></li>
                     <li class="nav-item"><a href="#contact" class="nav-link">Contact</a></li>
@@ -116,7 +122,7 @@
                 $categories = [];
             }
 
-            if (empty($categories)) : ?>
+            if (empty($categories)): ?>
                 <div class="categories-grid">
                     <p>Aucune catégorie disponible pour le moment.</p>
                 </div>
@@ -128,7 +134,7 @@
                         $desc = !empty($cat['description']) ? htmlspecialchars($cat['description']) : '';
                         $link = 'produits.php?category_id=' . (int) $cat['id'];
                         $delay = ($i % 4) * 100;
-                    ?>
+                        ?>
                         <a href="<?= htmlspecialchars($link) ?>">
                             <div class="category-card" data-aos="fade-up" data-aos-delay="<?= $delay ?>">
                                 <div class="category-image">
@@ -148,32 +154,32 @@
     </section>
 
     <script>
-    // Poll category timestamp and reload the homepage when categories change (so admins additions/edits show without manual refresh)
-    (function () {
-        let lastTs = null;
-        async function check() {
-            try {
-                const res = await fetch('category_ts.php');
-                if (!res.ok) return;
-                const json = await res.json();
-                const ts = parseInt(json.ts || 0);
-                if (lastTs === null) lastTs = ts;
-                if (ts > lastTs) {
-                    // categories changed by admin: reload to reflect new categories
-                    location.reload();
-                }
-            } catch (e) { /* ignore */ }
-        }
-        check();
-        setInterval(check, 8000);
-    })();
+        // Poll category timestamp and reload the homepage when categories change (so admins additions/edits show without manual refresh)
+        (function () {
+            let lastTs = null;
+            async function check() {
+                try {
+                    const res = await fetch('category_ts.php');
+                    if (!res.ok) return;
+                    const json = await res.json();
+                    const ts = parseInt(json.ts || 0);
+                    if (lastTs === null) lastTs = ts;
+                    if (ts > lastTs) {
+                        // categories changed by admin: reload to reflect new categories
+                        location.reload();
+                    }
+                } catch (e) { /* ignore */ }
+            }
+            check();
+            setInterval(check, 8000);
+        })();
     </script>
 
     <!-- Section Produits Vedettes -->
     <section class="products section" id="produits">
         <div class="container">
             <div class="section-header">
-                <h2 class="section-title">Produits Vedettes</h2>
+                <h2 class="section-title">Produits</h2>
                 <p class="section-subtitle">Une sélection de nos pièces les plus prisées</p>
             </div>
 
@@ -229,53 +235,38 @@
         <div class="container">
             <div class="section-header">
                 <h2 class="section-title" style="color: white;">Pourquoi Ama Meuble</h2>
-                <p class="section-subtitle" style="color: white;">L'excellence au service de votre intérieur</p>
+                <p class="section-subtitle" style="color: white;">L’art des meubles sur mesure pour votre maison</p>
             </div>
 
             <div class="features-grid">
                 <div class="feature-card" data-aos="zoom-in">
                     <div class="feature-icon">
-                        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="30" cy="30" r="28" stroke="#C9A24D" stroke-width="2" />
-                            <path d="M30 15V45M15 30H45" stroke="#C9A24D" stroke-width="2" stroke-linecap="round" />
-                        </svg>
+                        <img src="assets/images/solidite.png" alt="">
                     </div>
-                    <h3 class="feature-title">Bois de Qualité</h3>
-                    <p class="feature-description">Nous sélectionnons rigoureusement nos essences de bois pour garantir
-                        durabilité et authenticité</p>
+                    <h3 class="feature-title">La solidité</h3>
+                    <p class="feature-description">Notre priorité.
+                        Parce qu’un bon meuble commence par une base solide.</p>
                 </div>
 
                 <div class="feature-card" data-aos="zoom-in" data-aos-delay="100">
                     <div class="feature-icon">
-                        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="30" cy="30" r="28" stroke="#C9A24D" stroke-width="2" />
-                            <rect x="20" y="20" width="20" height="20" stroke="#C9A24D" stroke-width="2" />
-                        </svg>
+                        <img src="assets/images/confiance.png" alt="">
                     </div>
-                    <h3 class="feature-title">Design Moderne</h3>
-                    <p class="feature-description">Nos créations allient esthétique contemporaine et confort, pour un
-                        intérieur unique</p>
+                    <h3 class="feature-title">La confiance</h3>
+                    <p class="feature-description">Un service fiable et un suivi responsable à chaque étape.</p>
                 </div>
 
                 <div class="feature-card" data-aos="zoom-in" data-aos-delay="200">
                     <div class="feature-icon">
-                        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="30" cy="30" r="28" stroke="#C9A24D" stroke-width="2" />
-                            <path d="M25 30L28 33L35 26" stroke="#C9A24D" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" />
-                        </svg>
+                        <img src="assets/images/1986.png" alt="">
                     </div>
-                    <h3 class="feature-title">Fabrication Soignée</h3>
-                    <p class="feature-description">Chaque pièce est fabriquée avec attention aux détails par nos
-                        artisans qualifiés</p>
+                    <h3 class="feature-title">Depuis 1986</h3>
+                    <p class="feature-description">Une expérience de plus de 40 ans au cœur de notre atelier.</p>
                 </div>
 
                 <div class="feature-card" data-aos="zoom-in" data-aos-delay="300">
                     <div class="feature-icon">
-                        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="30" cy="30" r="28" stroke="#C9A24D" stroke-width="2" />
-                            <path d="M20 30L30 20L40 30L30 40L20 30Z" stroke="#C9A24D" stroke-width="2" />
-                        </svg>
+                        <img src="assets/images/livraison.png" alt="">
                     </div>
                     <h3 class="feature-title">Livraison Rapide</h3>
                     <p class="feature-description">Service de livraison professionnel et installation à domicile dans
@@ -327,7 +318,8 @@
                 <div class="contact-form">
                     <?php if (isset($messageStatus)): ?>
                         <div class="alert <?= $messageStatus['ok'] ? 'alert-success' : 'alert-error' ?>">
-                            <?= htmlspecialchars($messageStatus['msg']) ?></div>
+                            <?= htmlspecialchars($messageStatus['msg']) ?>
+                        </div>
                     <?php endif; ?>
                     <form method="post" class="form-contact">
                         <input type="hidden" name="send_message" value="1">

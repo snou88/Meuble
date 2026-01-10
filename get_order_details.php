@@ -107,12 +107,26 @@ try {
     $subtotal = 0;
     foreach ($items as $it) $subtotal += (float)($it['product_price'] ?? ($it['unit_price'] ?? 0)) * (int)($it['quantity'] ?? 1);
 
+    // mark order as seen (admin opened details)
+    try {
+        $u = $db->prepare('UPDATE orders SET is_seen = 1 WHERE id = ?');
+        $u->execute([$id]);
+    } catch (Exception $e) { /* ignore */ }
+
+    // compute unseen orders count
+    $unseenCount = 0;
+    try {
+        $cstmt = $db->query('SELECT COALESCE(COUNT(*),0) FROM orders WHERE is_seen = 0');
+        $unseenCount = (int)$cstmt->fetchColumn();
+    } catch (Exception $e) { /* ignore */ }
+
     $response = [
         'order' => $order,
         'items' => $items,
         'subtotal' => $subtotal,
         'delivery_price' => (float)($order['delivery_price'] ?? 0),
-        'total_price' => (float)($order['total_price'] ?? 0)
+        'total_price' => (float)($order['total_price'] ?? 0),
+        'unseen_count' => $unseenCount
     ];
 
     echo json_encode($response);
