@@ -392,9 +392,3 @@ function animateCounter(element, target, duration = 2000) {
 // ============================================
 // LOAD COMPLETE
 // ============================================
-
-window.addEventListener('load', () => {
-    console.log('Ama Meuble - Site loaded successfully');
-    document.body.style.opacity = '1';
-});
-

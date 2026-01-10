@@ -610,7 +610,7 @@ ul {
 }
 
 .product-info {
-    padding: 28px 24px;
+    padding: 24px 24px;
 }
 
 .product-name {
@@ -630,8 +630,7 @@ ul {
 
 .product-footer {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
 }
 
 .product-price {
@@ -1564,5 +1563,68 @@ ul {
 
     .gallery-item {
         height: 180px;
+    }
+}
+
+
+/* Conteneur optionnel */
+.select-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 320px;
+}
+
+/* Style du select */
+#category_id_filter {
+    width: 100%;
+    padding: 10px 40px 10px 14px;
+    font-size: 15px;
+    color: #333;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    cursor: pointer;
+
+    /* Supprimer le style natif */
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+
+    transition: all 0.25s ease;
+}
+
+/* Focus */
+#category_id_filter:focus {
+    border-color: var(--color-wood-dark); /* bleu moderne */
+    outline: none;
+}
+
+/* Hover */
+#category_id_filter:hover {
+    border-color: var(--color-wood-dark);
+}
+
+/* Flèche personnalisée */
+.select-wrapper::after {
+    content: "▾";
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    font-size: 14px;
+    color: #666;
+}
+
+/* Option */
+#category_id_filter option {
+    padding: 10px;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    #category_id_filter {
+        font-size: 14px;
+        padding: 9px 36px 9px 12px;
     }
 }

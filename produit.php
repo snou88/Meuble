@@ -249,11 +249,13 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
             // Add to cart
             addToCartBtn.addEventListener('click', async () => {
                 addToCartBtn.disabled = true;
-                const selectedFabric = document.querySelector('#fabricColorOptions .color-option.active');
-                const selectedWood = document.querySelector('#woodColorOptions .color-option.active');
+                const hasFabricOptions = document.querySelectorAll('#fabricColorOptions .color-option').length > 0;
+                const hasWoodOptions = document.querySelectorAll('#woodColorOptions .color-option').length > 0;
+                const selectedFabric = hasFabricOptions ? document.querySelector('#fabricColorOptions .color-option.active') : null;
+                const selectedWood = hasWoodOptions ? document.querySelector('#woodColorOptions .color-option.active') : null;
                 const missing = [];
-                if (!selectedFabric) missing.push('la couleur du tissu');
-                if (!selectedWood) missing.push('la couleur du bois');
+                if (hasFabricOptions && !selectedFabric) missing.push('la couleur du tissu');
+                if (hasWoodOptions && !selectedWood) missing.push('la couleur du bois');
                 if (missing.length > 0) { alert('Veuillez sélectionner ' + missing.join(' et ') + '.'); addToCartBtn.disabled = false; return; }
 
                 const qty = parseInt(qtySpan.textContent);

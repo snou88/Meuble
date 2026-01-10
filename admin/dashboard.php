@@ -1366,6 +1366,8 @@ require 'backendadmin.php';
                 <div class="form-group">
                     <label>Images actuelles</label>
                     <div id="edit-product-images" style="display:flex; gap:8px; align-items:center;"></div>
+                    <!-- Hidden input used as the file target when admin clicks the + tile. Having this input ensures change listeners and form submits work. -->
+                    <input type="file" id="edit_product_images" name="edit_product_images[]" accept="image/*" multiple style="display:none;">
                 </div>
                 <!-- Removed separate material-catalogs display and duplicate add-images block - images are managed in "Images actuelles" grid -->
                 <div class="form-group">

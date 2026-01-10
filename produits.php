@@ -78,7 +78,11 @@
                 $maxPriceFilter = isset($_GET['max_price']) && is_numeric($_GET['max_price']) ? (float) $_GET['max_price'] : null;
                 $selectedFabric = isset($_GET['fabric']) && is_array($_GET['fabric']) ? $_GET['fabric'] : [];
                 $selectedWood = isset($_GET['wood']) && is_array($_GET['wood']) ? $_GET['wood'] : [];
+                $categoryFilter = isset($_GET['category_id']) && is_numeric($_GET['category_id']) && (int) $_GET['category_id'] > 0 ? (int) $_GET['category_id'] : null;
                 $sort = isset($_GET['sort']) ? $_GET['sort'] : 'featured';
+
+                // load categories for category filter UI
+                $catList = $db->query("SELECT id, name FROM categories ORDER BY name")->fetchAll(PDO::FETCH_ASSOC);
 
                 // Get price range maximum from DB
                 $maxPriceStmt = $db->query("SELECT MAX(price) AS max_price FROM product_dimensions");
@@ -147,6 +151,12 @@
     )";
                 }
 
+                // Category filter (single select)
+                if (!empty($categoryFilter)) {
+                    $where[] = 'p.category_id = :category_id';
+                    $params['category_id'] = $categoryFilter;
+                }
+
                 $whereSql = '';
                 if (!empty($where)) {
                     $whereSql = 'WHERE ' . implode(' AND ', $where);
@@ -204,6 +214,17 @@
                         <h3 class="filter-title">Recherche</h3>
                         <input type="text" id="searchInput" name="search" placeholder="Rechercher un produit..."
                             class="search-input" value="<?= htmlspecialchars($search) ?>">
+                    </div>
+
+                    <!-- Category Filter -->
+                    <div class="filter-section">
+                        <h3 class="filter-title">Catégorie</h3>
+                        <select name="category_id" id="category_id_filter">
+                            <option value="">Toutes</option>
+                            <?php foreach ($catList as $c): ?>
+                                <option value="<?= (int) $c['id'] ?>" <?= ($categoryFilter === (int) $c['id']) ? 'selected' : '' ?>><?= htmlspecialchars($c['name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
 
                     <!-- Price Range -->
@@ -297,22 +318,57 @@
                                         <div class="product-image">
                                             <img src="<?= htmlspecialchars($img) ?>" alt="<?= $name ?>">
                                         </div>
-                                        <div class="product-info">
+                                        <div class="product-info d-flex flex-column h-100">
+
                                             <h3 class="product-name"><?= $name ?></h3>
                                             <p class="product-description"><?= $desc ?></p>
-                                            <div class="product-footer">
+
+                                            <div class="product-footer d-flex flex-column flex-grow-1">
+
                                                 <?php if ($minP == $maxP): ?>
                                                     <?php if ($minPriceNew !== null): ?>
-                                                        <span class="product-price-old" style="color:#888;text-decoration:line-through;margin-right:8px;"><?= number_format($minP, 0, ',', ' ') ?> DA</span>
-                                                        <?php if ($promo): ?><span class="product-promo" style="color:#c00;margin-right:8px;">-<?= $promo ?>%</span><?php endif; ?>
-                                                        <span class="product-price-new" style="color:#c00;font-weight:600;"><?= number_format($minPriceNew, 0, ',', ' ') ?> DA</span>
+
+                                                        <div class="d-flex align-items-center">
+
+                                                            <span class="product-price-old"
+                                                                style="color:#888;text-decoration:line-through;margin-right:8px; font-size: 28px; font-weight: 700;">
+                                                                <?= number_format($minP, 0, ',', ' ') ?> DA
+                                                            </span>
+
+                                                            <?php if ($promo): ?>
+                                                                <span class="product-promo"
+                                                                    style="color:#c00;margin-right:8px;font-size: 28px; font-weight: 700; position: relative; left: 100px; top: 25px;">
+                                                                    -<?= $promo ?>%
+                                                                </span>
+                                                            <?php endif; ?>
+
+                                                            <span class="product-price-new"
+                                                                style="color:#c00;font-weight:700; font-size: 28px; display: flex;">
+                                                                <?= number_format($minPriceNew, 0, ',', ' ') ?> DA
+                                                            </span>
+
+                                                        </div>
+
                                                     <?php else: ?>
-                                                        <span class="product-price"><?= number_format($minP, 0, ',', ' ') ?> DA</span>
+
+                                                        <span class="product-price">
+                                                            <?= number_format($minP, 0, ',', ' ') ?> DA
+                                                        </span>
+
                                                     <?php endif; ?>
                                                 <?php else: ?>
-                                                    <span class="product-price-range"><?= number_format($minP, 0, ',', ' ') ?> - <?= number_format($maxP, 0, ',', ' ') ?> DA</span>
+
+                                                    <span class="product-price">
+                                                        <?= number_format($minP, 0, ',', ' ') ?> DA
+                                                    </span>
+
                                                 <?php endif; ?>
-                                                <a href="<?= $link ?>"><button class="btn btn-secondary">Voir le produit</button></a>
+
+                                                <!-- BOUTON FIXE EN BAS -->
+                                                <a href="<?= $link ?>" class="mt-auto align-self-start">
+                                                    <button class="btn btn-secondary">Voir le produit</button>
+                                                </a>
+
                                             </div>
                                         </div>
                                     </div>
@@ -459,6 +515,10 @@
             document.querySelectorAll('#fabricFilters input[type=checkbox], #woodFilters input[type=checkbox]').forEach(cb => {
                 cb.addEventListener('change', function () { document.getElementById('filtersForm').submit(); });
             });
+
+            // category select change submits filters form
+            const catSel = document.getElementById('category_id_filter');
+            if (catSel) catSel.addEventListener('change', function () { document.getElementById('filtersForm').submit(); });
 
             // If search input and user presses Enter, submit form
             const searchInput = document.getElementById('searchInput');

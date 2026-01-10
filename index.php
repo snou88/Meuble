@@ -147,6 +147,28 @@
         </div>
     </section>
 
+    <script>
+    // Poll category timestamp and reload the homepage when categories change (so admins additions/edits show without manual refresh)
+    (function () {
+        let lastTs = null;
+        async function check() {
+            try {
+                const res = await fetch('category_ts.php');
+                if (!res.ok) return;
+                const json = await res.json();
+                const ts = parseInt(json.ts || 0);
+                if (lastTs === null) lastTs = ts;
+                if (ts > lastTs) {
+                    // categories changed by admin: reload to reflect new categories
+                    location.reload();
+                }
+            } catch (e) { /* ignore */ }
+        }
+        check();
+        setInterval(check, 8000);
+    })();
+    </script>
+
     <!-- Section Produits Vedettes -->
     <section class="products section" id="produits">
         <div class="container">

@@ -455,15 +455,18 @@ if (isset($_POST['update_product_v2'])) {
         // After deletions, check how many remain
         $simg = $pdo->prepare("SELECT COUNT(*) FROM product_images WHERE product_id = ?"); $simg->execute([$product_id]); $imgCountAfterDelete = (int)$simg->fetchColumn();
 
-        if (!empty($_FILES['product_images']) && !empty($_FILES['product_images']['name'])) {
-            $files = $_FILES['product_images'];
-            for ($i = 0; $i < count($files['name']); $i++) {
-                if (empty($files['tmp_name'][$i])) continue;
-                $path = uploadImageFile($files['tmp_name'][$i], $files['name'][$i], 'prod_');
-                if ($path) {
-                    // Insert image row (no is_primary column in new schema).
-                    $pdo->prepare("INSERT INTO product_images (product_id, image_path) VALUES (?, ?)")->execute([$product_id, $path]);
-                    $imgCountAfterDelete++;
+        // Handle new uploaded images. Accept both 'product_images' (add modal) and 'edit_product_images' (edit modal hidden inputs)
+        $uploadKeys = ['product_images','edit_product_images'];
+        foreach ($uploadKeys as $key) {
+            if (!empty($_FILES[$key]) && !empty($_FILES[$key]['name'])) {
+                $files = $_FILES[$key];
+                for ($i = 0; $i < count($files['name']); $i++) {
+                    if (empty($files['tmp_name'][$i])) continue;
+                    $path = uploadImageFile($files['tmp_name'][$i], $files['name'][$i], 'prod_');
+                    if ($path) {
+                        $pdo->prepare("INSERT INTO product_images (product_id, image_path) VALUES (?, ?)")->execute([$product_id, $path]);
+                        $imgCountAfterDelete++;
+                    }
                 }
             }
         }
@@ -556,8 +559,13 @@ if (isset($_POST['add_product_category'])) {
         $s = $pdo->prepare("SELECT id, name, slug, description, image_path, created_at FROM categories WHERE id = ?");
         $s->execute([$newId]);
         $row = $s->fetch(PDO::FETCH_ASSOC);
+        // update categories timestamp so frontend pages can auto-refresh
+        $tsFile = dirname(__DIR__) . '/cache/categories_ts.txt';
+        if (!is_dir(dirname($tsFile))) @mkdir(dirname($tsFile), 0777, true);
+        @file_put_contents($tsFile, (string) time());
         if (isAjax()) {
-            jsonResponse(['ok'=>true,'category'=>$row]);
+            jsonResponse(['ok'=>true,'category'=>$row,'category_ts'=>filemtime($tsFile)]);
+        
         }
         $success_message = 'Catégorie ajoutée avec succès!';
         header('Location: dashboard.php?page=categories'); exit();
@@ -588,7 +596,11 @@ if (isset($_POST['update_product_category'])) {
         $s = $pdo->prepare("SELECT id, name, slug, description, image_path, created_at FROM categories WHERE id = ?");
         $s->execute([$id]);
         $row = $s->fetch(PDO::FETCH_ASSOC);
-        if (isAjax()) jsonResponse(['ok'=>true,'category'=>$row]);
+        // update categories timestamp
+        $tsFile = dirname(__DIR__) . '/cache/categories_ts.txt';
+        if (!is_dir(dirname($tsFile))) @mkdir(dirname($tsFile), 0777, true);
+        @file_put_contents($tsFile, (string) time());
+        if (isAjax()) jsonResponse(['ok'=>true,'category'=>$row,'category_ts'=>filemtime($tsFile)]);
         $success_message = 'Catégorie mise à jour';
         header('Location: dashboard.php?page=categories'); exit();
     } catch (Exception $e) { $error_message = $e->getMessage(); }
@@ -603,7 +615,11 @@ if (isset($_POST['delete_product_category'])) {
         // remove image
         $stmt = $pdo->prepare("SELECT image_path FROM categories WHERE id = ?"); $stmt->execute([$id]); $img = $stmt->fetchColumn(); if ($img) deleteFilePath($img);
         $pdo->prepare("DELETE FROM categories WHERE id = ?")->execute([$id]);
-        if (isAjax()) jsonResponse(['ok'=>true]);
+        // update categories timestamp so front pages can reload
+        $tsFile = dirname(__DIR__) . '/cache/categories_ts.txt';
+        if (!is_dir(dirname($tsFile))) @mkdir(dirname($tsFile), 0777, true);
+        @file_put_contents($tsFile, (string) time());
+        if (isAjax()) jsonResponse(['ok'=>true,'category_ts'=>filemtime($tsFile)]);
         $success_message = 'Catégorie supprimée';
         header('Location: dashboard.php?page=categories'); exit();
     } catch (Exception $e) { if (isAjax()) jsonResponse(['ok'=>false,'error'=>$e->getMessage()],500); $error_message = $e->getMessage(); }
@@ -840,8 +856,31 @@ if (isset($_POST['update_order_status'])) {
         $status = trim($_POST['status'] ?? '');
         $allowed = ['pending','processing','shipped','delivered','canceled','archived'];
         if (!$order_id || !in_array($status, $allowed)) throw new Exception('Invalid parameters');
+        // Fetch old status to detect transition
+        $old = $db->prepare("SELECT status FROM orders WHERE id = ?"); $old->execute([$order_id]); $oldStatus = $old->fetchColumn();
+
         $stmt = $db->prepare("UPDATE orders SET status = ? WHERE id = ?");
         $stmt->execute([$status, $order_id]);
+
+        // If transitioning into delivered from a non-delivered state, decrement stock
+        if ($oldStatus !== 'delivered' && $status === 'delivered') {
+            $items = getOrderItems($db, $order_id);
+            foreach ($items as $it) {
+                $qty = isset($it['quantity']) ? (int)$it['quantity'] : (int)($it['qty'] ?? 0);
+                if ($qty <= 0) continue;
+                if (empty($it['dimension_id'])) continue;
+                // Check current stock
+                $dstmt = $db->prepare('SELECT stock FROM product_dimensions WHERE id = ? FOR UPDATE');
+                $dstmt->execute([$it['dimension_id']]);
+                $stock = $dstmt->fetchColumn();
+                if ($stock === false) continue;
+                // Do not decrement unlimited stock (represented by a very large number)
+                if ((int)$stock >= 9999999) continue;
+                $newStock = max(0, (int)$stock - $qty);
+                $db->prepare('UPDATE product_dimensions SET stock = ? WHERE id = ?')->execute([$newStock, $it['dimension_id']]);
+            }
+        }
+
         if (isAjax()) jsonResponse(['ok'=>true]);
         $success_message = "Statut de commande mis à jour avec succès!";
     } catch (Exception $e) { if (isAjax()) jsonResponse(['ok'=>false,'error'=>$e->getMessage()],500); $error_message = "Erreur lors de la mise à jour du statut: " . $e->getMessage(); }
