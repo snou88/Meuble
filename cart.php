@@ -41,21 +41,30 @@ try {
             exit;
         }
 
-        // require both fabric and wood selections
-        $missing = [];
-        if (empty($fabric)) $missing[] = 'tissu';
-        if (empty($wood)) $missing[] = 'bois';
-        if (!empty($missing)) {
-            $msg = 'Veuillez sélectionner ' . implode(' et ', $missing);
-            echo json_encode(['success' => false, 'error' => $msg]);
-            exit;
-        }
-
         // fetch product and dimension details
         $p = $db->prepare('SELECT id, name FROM products WHERE id = :id');
         $p->execute([':id' => $productId]);
         $prod = $p->fetch();
         if (!$prod) throw new Exception('Product not found');
+
+        // Check if product has fabric/wood color options
+        $hasFabricColors = $db->prepare('SELECT COUNT(*) as cnt FROM product_colors WHERE product_id = :id AND type = "tissu"');
+        $hasFabricColors->execute([':id' => $productId]);
+        $fabricCount = $hasFabricColors->fetch()['cnt'];
+
+        $hasWoodColors = $db->prepare('SELECT COUNT(*) as cnt FROM product_colors WHERE product_id = :id AND type = "bois"');
+        $hasWoodColors->execute([':id' => $productId]);
+        $woodCount = $hasWoodColors->fetch()['cnt'];
+
+        // Only require fabric/wood selections if they exist
+        $missing = [];
+        if ($fabricCount > 0 && empty($fabric)) $missing[] = 'la couleur du tissu';
+        if ($woodCount > 0 && empty($wood)) $missing[] = 'la couleur du bois';
+        if (!empty($missing)) {
+            $msg = 'Veuillez sélectionner ' . implode(' et ', $missing);
+            echo json_encode(['success' => false, 'error' => $msg]);
+            exit;
+        }
 
         $d = $db->prepare('SELECT id, label, price FROM product_dimensions WHERE id = :id AND product_id = :pid');
         $d->execute([':id' => $dimensionId, ':pid' => $productId]);

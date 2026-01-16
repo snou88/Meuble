@@ -257,6 +257,10 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
                 if (hasFabricOptions && !selectedFabric) missing.push('la couleur du tissu');
                 if (hasWoodOptions && !selectedWood) missing.push('la couleur du bois');
                 if (missing.length > 0) { alert('Veuillez sélectionner ' + missing.join(' et ') + '.'); addToCartBtn.disabled = false; return; }
+                
+                // If no fabric/wood options exist, set to null
+                const fabric = selectedFabric ? selectedFabric.dataset.colorName : null;
+                const wood = selectedWood ? selectedWood.dataset.woodName : null;
 
                 const qty = parseInt(qtySpan.textContent);
                 // enforce stock on submit as well
@@ -411,21 +415,18 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
                     </div>
                 </div>
 
+                <?php if (!empty($fabricColors)): ?>
                 <div class="option-group">
                     <h3>Couleur du tissu</h3>
                     <div style="display:flex; gap:12px; align-items:flex-start;">
                         <div class="options" id="fabricColorOptions" style="flex:1;">
-                            <?php if (!empty($fabricColors)): ?>
-                                <?php foreach ($fabricColors as $c): ?>
-                                    <button class="color-option" data-color-name="<?= htmlspecialchars($c['color_name']) ?>"
-                                        data-color-code="<?= htmlspecialchars($c['color_code']) ?>"
-                                        title="<?= htmlspecialchars($c['color_name']) ?>"
-                                        style="background-color: <?= htmlspecialchars($c['color_code'] ?: '#ccc') ?>;"
-                                        tabindex="0" role="button" aria-pressed="false"></button>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <div>Aucune couleur tissu</div>
-                            <?php endif; ?>
+                            <?php foreach ($fabricColors as $c): ?>
+                                <button class="color-option" data-color-name="<?= htmlspecialchars($c['color_name']) ?>"
+                                    data-color-code="<?= htmlspecialchars($c['color_code']) ?>"
+                                    title="<?= htmlspecialchars($c['color_name']) ?>"
+                                    style="background-color: <?= htmlspecialchars($c['color_code'] ?: '#ccc') ?>;"
+                                    tabindex="0" role="button" aria-pressed="false"></button>
+                            <?php endforeach; ?>
                         </div>
                         <?php if (!empty($materialByType['tissu'])): ?>
                             <div style="flex:0 0 120px; text-align:center;">
@@ -438,23 +439,21 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
                         <?php endif; ?>
                     </div>
                 </div>
+                <?php endif; ?>
 
+                <?php if (!empty($woodColors)): ?>
                 <div class="option-group">
                     <h3>Couleur des pieds</h3>
                     <div style="display:flex; gap:12px; align-items:flex-start;">
                         <div class="options" id="woodColorOptions" style="flex:1;">
-                            <?php if (!empty($woodColors)): ?>
-                                <?php foreach ($woodColors as $c): ?>
-                                    <button class="color-option" data-wood-name="<?= htmlspecialchars($c['color_name']) ?>"
-                                        data-wood-code="<?= htmlspecialchars($c['color_code']) ?>"
-                                        title="<?= htmlspecialchars($c['color_name']) ?>"
-                                        style="background-color: <?= htmlspecialchars($c['color_code'] ?: '#ccc') ?>; border:1px solid #ddd;"
-                                        tabindex="0" role="button" aria-pressed="false">
-                                    </button>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <div>Aucune couleur bois</div>
-                            <?php endif; ?>
+                            <?php foreach ($woodColors as $c): ?>
+                                <button class="color-option" data-wood-name="<?= htmlspecialchars($c['color_name']) ?>"
+                                    data-wood-code="<?= htmlspecialchars($c['color_code']) ?>"
+                                    title="<?= htmlspecialchars($c['color_name']) ?>"
+                                    style="background-color: <?= htmlspecialchars($c['color_code'] ?: '#ccc') ?>; border:1px solid #ddd;"
+                                    tabindex="0" role="button" aria-pressed="false">
+                                </button>
+                            <?php endforeach; ?>
                         </div>
                         <?php if (!empty($materialByType['bois'])): ?>
                             <div style="flex:0 0 120px; text-align:center;">
@@ -467,6 +466,7 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
                         <?php endif; ?>
                     </div>
                 </div>
+                <?php endif; ?>
 
                 <div class="quantity-selector">
                     <button id="decreaseQty">-</button>
