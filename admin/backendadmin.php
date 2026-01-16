@@ -488,12 +488,6 @@ if (isset($_POST['update_product_v2'])) {
             throw new Exception('Au moins une image de produit est requise.');
         }
 
-        // Ensure at least one image exists after update
-        $simg = $pdo->prepare("SELECT COUNT(*) FROM product_images WHERE product_id = ?"); $simg->execute([$product_id]); $imgCount = (int)$simg->fetchColumn();
-        if ($imgCount === 0) {
-            throw new Exception('Au moins une image de produit est requise.');
-        }
-
         // Colors: delete and re-insert (no images)
         $pdo->prepare("DELETE FROM product_colors WHERE product_id = ?")->execute([$product_id]);
         if (isset($_POST['color_names']) && is_array($_POST['color_names'])) {

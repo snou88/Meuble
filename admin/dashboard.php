@@ -1403,7 +1403,7 @@ require 'backendadmin.php';
                             <option value="<?= $ct['id'] ?>"><?= htmlspecialchars($ct['name']) ?></option>
                         <?php endforeach; ?>
                     </select>
-                </div>div>
+                </div>
 
                 <div class="form-group">
                     <label for="edit_description">Description</label>
@@ -1569,6 +1569,7 @@ require 'backendadmin.php';
 
             // Populate existing product images into the edit image grid
             const imgContainer = document.getElementById('edit-product-images');
+            const editForm = document.getElementById('edit_product_form');
             if (imgContainer) {
                 imgContainer.innerHTML = '';
                 if (product.images && product.images.length) {
@@ -1577,13 +1578,37 @@ require 'backendadmin.php';
                         wrapper.className = 'image-tile existing-image';
                         wrapper.style.position = 'relative';
 
-                        const primaryBadge = '';
-
-                        wrapper.innerHTML = `
-                            <img src="../${img.image_path}" style="width:100%;height:100%;object-fit:cover;border:1px solid #ddd;border-radius:6px;">
-                            <input type="hidden" name="existing_product_images[]" value="${img.id}">
-                            <button type="button" class="btn btn-small btn-danger image-remove" style="position:absolute;right:6px;top:6px;" onclick="deleteProductImage(this, ${img.id})">&times;</button>
-                        `;
+                        // Create the image tile
+                        const imgElement = document.createElement('img');
+                        imgElement.src = '../' + img.image_path;
+                        imgElement.style.width = '100%';
+                        imgElement.style.height = '100%';
+                        imgElement.style.objectFit = 'cover';
+                        imgElement.style.border = '1px solid #ddd';
+                        imgElement.style.borderRadius = '6px';
+                        wrapper.appendChild(imgElement);
+                        
+                        // Create the hidden input for tracking this image
+                        const hiddenInput = document.createElement('input');
+                        hiddenInput.type = 'hidden';
+                        hiddenInput.name = 'existing_product_images[]';
+                        hiddenInput.value = img.id;
+                        wrapper.appendChild(hiddenInput);
+                        
+                        // Create the delete button
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.type = 'button';
+                        deleteBtn.className = 'btn btn-small btn-danger image-remove';
+                        deleteBtn.style.position = 'absolute';
+                        deleteBtn.style.right = '6px';
+                        deleteBtn.style.top = '6px';
+                        deleteBtn.textContent = '×';
+                        deleteBtn.onclick = (e) => {
+                            e.preventDefault();
+                            deleteProductImage(deleteBtn, img.id);
+                        };
+                        wrapper.appendChild(deleteBtn);
+                        
                         imgContainer.appendChild(wrapper);
                     });
                 }
@@ -1595,8 +1620,48 @@ require 'backendadmin.php';
                 addTile.addEventListener('click', () => document.getElementById('edit_product_images').click());
                 imgContainer.appendChild(addTile);
 
-                // wire up change handler for edit file input so selected new files show as previews
-                initImageGrid('edit_product_images', 'edit-product-images');
+                // wire up change handler for edit file input WITHOUT clearing the grid
+                const editImageInput = document.getElementById('edit_product_images');
+                if (editImageInput) {
+                    editImageInput.value = ''; // clear any previous value
+                    // remove old change listeners by cloning
+                    const newInput = editImageInput.cloneNode(true);
+                    editImageInput.parentNode.replaceChild(newInput, editImageInput);
+                    
+                    newInput.addEventListener('change', (e) => {
+                        if (!e.target.files || e.target.files.length === 0) return;
+                        // Show previews for newly selected files
+                        Array.from(e.target.files).forEach((file, idx) => {
+                            const url = URL.createObjectURL(file);
+                            const tile = document.createElement('div');
+                            tile.className = 'image-tile new-file';
+                            
+                            const imgEl = document.createElement('img');
+                            imgEl.src = url;
+                            imgEl.style.width = '100%';
+                            imgEl.style.height = '100%';
+                            imgEl.style.objectFit = 'cover';
+                            imgEl.style.borderRadius = '6px';
+                            tile.appendChild(imgEl);
+                            
+                            const removeBtn = document.createElement('button');
+                            removeBtn.type = 'button';
+                            removeBtn.className = 'btn btn-small btn-danger image-remove';
+                            removeBtn.textContent = '×';
+                            removeBtn.title = 'Retirer';
+                            removeBtn.addEventListener('click', (evt) => {
+                                evt.preventDefault();
+                                evt.stopPropagation();
+                                tile.remove();
+                                // Clear the file input to remove this file
+                                e.target.value = '';
+                            });
+                            tile.appendChild(removeBtn);
+                            
+                            imgContainer.insertBefore(tile, addTile);
+                        });
+                    });
+                }
 
                 // populate material catalogs (unchanged)
                 const matContainer = document.getElementById('edit-material-catalogs');
