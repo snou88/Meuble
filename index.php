@@ -241,7 +241,7 @@
             <div class="features-grid">
                 <div class="feature-card" data-aos="zoom-in">
                     <div class="feature-icon">
-                        <img src="assets/images/solidite.png" alt="">
+                        <img style="width: 130px;" src="assets/images/solidite.png" alt="">
                     </div>
                     <h3 class="feature-title">La solidité</h3>
                     <p class="feature-description">Notre priorité.
@@ -250,7 +250,7 @@
 
                 <div class="feature-card" data-aos="zoom-in" data-aos-delay="100">
                     <div class="feature-icon">
-                        <img src="assets/images/confiance.png" alt="">
+                        <img style="width: 130px;" src="assets/images/confiance.png" alt="">
                     </div>
                     <h3 class="feature-title">La confiance</h3>
                     <p class="feature-description">Un service fiable et un suivi responsable à chaque étape.</p>
@@ -258,7 +258,7 @@
 
                 <div class="feature-card" data-aos="zoom-in" data-aos-delay="200">
                     <div class="feature-icon">
-                        <img src="assets/images/1986.png" alt="">
+                        <img style="width: 130px;" src="assets/images/1986.png" alt="">
                     </div>
                     <h3 class="feature-title">Depuis 1986</h3>
                     <p class="feature-description">Une expérience de plus de 40 ans au cœur de notre atelier.</p>
@@ -266,7 +266,7 @@
 
                 <div class="feature-card" data-aos="zoom-in" data-aos-delay="300">
                     <div class="feature-icon">
-                        <img src="assets/images/livraison.png" alt="">
+                        <img style="width: 130px;" src="assets/images/livraison.png" alt="">
                     </div>
                     <h3 class="feature-title">Livraison Rapide</h3>
                     <p class="feature-description">Service de livraison professionnel et installation à domicile dans

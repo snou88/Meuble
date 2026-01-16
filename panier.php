@@ -142,11 +142,11 @@
                                 $wood_code = null;
                         }
                         ?>
-                        <div class="cart-item" data-key="<?= htmlspecialchars($item['key']) ?>">
-                            <img src="<?= htmlspecialchars($item['image']) ?>" alt="<?= htmlspecialchars($item['name']) ?>">
+                        <div class="cart-item" data-key="<?= htmlspecialchars($item['key'] ?? '') ?>">
+                            <img src="<?= htmlspecialchars($item['image'] ?? '') ?>" alt="<?= htmlspecialchars($item['name'] ?? '') ?>">
                             <div class="item-info">
-                                <h3><?= htmlspecialchars($item['name']) ?></h3>
-                                <p><?= htmlspecialchars($item['dimension_label']) ?></p>
+                                <h3><?= htmlspecialchars($item['name'] ?? '') ?></h3>
+                                <p><?= htmlspecialchars($item['dimension_label'] ?? '') ?></p>
                                 <div style="margin-top:6px; display:flex; gap:10px; align-items:center;">
                                     <div style="display:flex; gap:8px; align-items:center;">
                                         <small style="color:#666">Tissu</small>
@@ -166,9 +166,18 @@
                                         <?php endif; ?>
                                     </div>
                                 </div>
-                                <span class="price"
-                                    style="display:block; margin-top:8px"><?= number_format($item['unit_price'], 0, ',', ' ') ?>
-                                    DA</span>
+                                <span class="price" style="display:block; margin-top:8px">
+                                    <?php 
+                                    $isPromo = isset($item['is_promo']) && $item['is_promo'];
+                                    $originalPrice = isset($item['original_price']) ? $item['original_price'] : $item['unit_price'];
+                                    ?>
+                                    <?php if ($isPromo): ?>
+                                        <span style="text-decoration: line-through; color: #999; margin-right: 8px;"><?= number_format($originalPrice, 0, ',', ' ') ?> DA</span>
+                                        <span style="color: #e74c3c; font-weight: bold;"><?= number_format($item['unit_price'], 0, ',', ' ') ?> DA</span>
+                                    <?php else: ?>
+                                        <?= number_format($item['unit_price'], 0, ',', ' ') ?> DA
+                                    <?php endif; ?>
+                                </span>
                             </div>
 
                             <div class="quantity-selector">
@@ -177,7 +186,7 @@
                                 <button class="qty-increase">+</button>
                             </div>
 
-                            <button class="remove" data-key="<?= htmlspecialchars($item['key']) ?>" title="Supprimer"
+                            <button class="remove" data-key="<?= htmlspecialchars($item['key'] ?? '') ?>" title="Supprimer"
                                 aria-label="Supprimer cet article">✕</button>
                         </div>
                     <?php endforeach; ?>
@@ -255,9 +264,9 @@
                         <select name="wilaya" id="wilayaSelect" required>
                             <option value="">Choisir la wilaya</option>
                             <?php foreach ($wilayas as $w): ?>
-                                <option value="<?= (int) $w['id'] ?>" data-price="<?= (int) $w['domicile_price'] ?>">
-                                    <?= htmlspecialchars($w['name']) ?> -
-                                    <?= number_format($w['domicile_price'], 0, ',', ' ') ?> DA
+                                <option value="<?= (int) ($w['id'] ?? 0) ?>" data-price="<?= (int) ($w['domicile_price'] ?? 0) ?>">
+                                    <?= htmlspecialchars($w['name'] ?? '') ?> -
+                                    <?= number_format($w['domicile_price'] ?? 0, 0, ',', ' ') ?> DA
                                 </option>
                             <?php endforeach; ?>
                         </select>

@@ -425,14 +425,16 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
                                     data-promo="<?= isset($d['promo_percent']) ? (int) $d['promo_percent'] : 0 ?>"
                                     data-stock="<?= (int) $d['stock'] ?>">
                                     <div class="dim-values">
+                                        <?php if ($d['depth_cm'] > 0): ?>
+                                            <span>Longueur:
+                                                <?= (int) $d['depth_cm'] ?> cm
+                                            </span>
+                                        <?php endif; ?>
                                         <?php if ($d['width_cm'] > 0): ?>
                                             <span>Largeur: <?= (int) $d['width_cm'] ?> cm</span>
                                         <?php endif; ?>
                                         <?php if ($d['height_cm'] > 0): ?>
                                             <span>Hauteur: <?= (int) $d['height_cm'] ?> cm</span>
-                                        <?php endif; ?>
-                                        <?php if ($d['depth_cm'] > 0): ?>
-                                            <span>Profondeur: <?= (int) $d['depth_cm'] ?> cm</span>
                                         <?php endif; ?>
                                     </div>
                                     <div class="dim-stock">

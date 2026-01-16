@@ -66,18 +66,21 @@ try {
             exit;
         }
 
-        $d = $db->prepare('SELECT id, label, price FROM product_dimensions WHERE id = :id AND product_id = :pid');
+        $d = $db->prepare('SELECT id, label, price, price_new, promo_percent FROM product_dimensions WHERE id = :id AND product_id = :pid');
         $d->execute([':id' => $dimensionId, ':pid' => $productId]);
         $dim = $d->fetch();
         if (!$dim) throw new Exception('Dimension not found');
+
+        // Calculate effective price: use price_new if set, else price
+        $unitPrice = (float)($dim['price_new'] ?? $dim['price']);
+        $originalPrice = (float)$dim['price'];
+        $isPromo = !is_null($dim['price_new']) && $dim['price_new'] < $dim['price'];
 
         // image for product (schema uses product-level images)
         $imgStmt = $db->prepare('SELECT image_path FROM product_images WHERE product_id = :pid ORDER BY id LIMIT 1');
         $imgStmt->execute([':pid' => $productId]);
         $imgRow = $imgStmt->fetch();
-        $image = $imgRow ? $imgRow['image_path'] : 'assets/images/default_product.jpg';
-
-        $unitPrice = (float)$dim['price'];
+        $image = ($imgRow && !empty($imgRow['image_path'])) ? $imgRow['image_path'] : 'assets/images/default_product.jpg';
 
         $key = $productId . '_' . $dimensionId . '_' . ($fabric ?: 'none') . '_' . ($wood ?: 'none');
 
@@ -95,6 +98,8 @@ try {
                 'fabric' => $fabric,
                 'wood' => $wood,
                 'unit_price' => $unitPrice,
+                'original_price' => $originalPrice,
+                'is_promo' => $isPromo,
                 'qty' => $qty,
                 'total_price' => $unitPrice * $qty,
                 'image' => $image
