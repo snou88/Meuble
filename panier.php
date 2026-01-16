@@ -290,22 +290,15 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="successOverlay">
-        <div class="modal" role="dialog" aria-modal="true">
-            <h3>Commande passée</h3>
-            <p id="successMessage">
-                Nous vous remercions pour votre confiance. Votre commande a bien été reçue et sera
-                confirmée par notre équipe dans les plus brefs délais.
-                
-‎تم استلام طلبكم بنجاح. سيتواصل معكم فريقنا في أقرب وقت لتأكيد الطلب. شكرًا لثقتكم بنا
-
-                </p>
-            <div class="modal-actions">
-                <button class="btn btn-primary" id="successOk">OK</button>
-            </div>
+<div class="modal-overlay" id="successOverlay">
+    <div class="modal" role="dialog" aria-modal="true">
+        <h3>Commande passée <span style="color: green; font-size: 22px;">✔</span></h3>
+        <p id="successMessage"></p> <!-- on laisse vide, JS remplira le texte -->
+        <div class="modal-actions">
+            <button class="btn btn-primary" id="successOk">OK</button>
         </div>
     </div>
-
+</div>
     <!-- Footer -->
     <footer class="footer" id="contact">
         <div class="container">
@@ -375,8 +368,13 @@
                 <div class="footer-col">
                     <h4 class="footer-title">Contact</h4>
                     <ul class="footer-links">
-                        <li><a href="#accueil">05 55 55 55 55</a></li>
-                        <li><a href="#produits"></a>amameuble@gmail.com</li>
+                        <li>
+                            <a href="tel:+213557533900">05 57 53 39 00</a>
+                        </li>
+
+                        <li>
+                            <a href="mailto:Medjsalons@gmail.com">Medjsalons@gmail.com</a>
+                        </li>
                     </ul>
                 </div>
             </div>

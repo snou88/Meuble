@@ -80,6 +80,7 @@
                 $db = getDBConnection();
 
                 // Read filters from GET
+                $typep = isset($_GET['type']) ? trim($_GET['type']) : '';
                 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
                 $maxPriceFilter = isset($_GET['max_price']) && is_numeric($_GET['max_price']) ? (float) $_GET['max_price'] : null;
                 $selectedFabric = isset($_GET['fabric']) && is_array($_GET['fabric']) ? $_GET['fabric'] : [];
@@ -115,6 +116,11 @@
                     $where[] = "(p.name LIKE :search_name OR p.description LIKE :search_desc)";
                     $params['search_name'] = "%$search%";
                     $params['search_desc'] = "%$search%";
+                }
+                // search (named param) - use two different placeholders
+                if (!empty($typep)) {
+                    $where[] = "(p.product_type LIKE :search_typep)";
+                    $params['search_typep'] = "%$typep%";
                 }
 
                 // MAX PRICE
@@ -300,7 +306,8 @@
                         </div>
 
                         <?php if (empty($productsFromDb)): ?>
-                            <div id="noResults" class="no-results" style=" display: flex; flex-direction: column; align-items: center;">
+                            <div id="noResults" class="no-results"
+                                style=" display: flex; flex-direction: column; align-items: center;">
                                 <div class="no-results-icon">🔍</div>
                                 <h3>Aucun produit trouvé</h3>
                                 <p>Aucun produit ne correspond à vos critères de recherche.</p>
@@ -454,8 +461,13 @@
                 <div class="footer-col">
                     <h4 class="footer-title">Contact</h4>
                     <ul class="footer-links">
-                        <li><a href="#accueil">05 55 55 55 55</a></li>
-                        <li><a href="#produits"></a>amameuble@gmail.com</li>
+                        <li>
+                            <a href="tel:+213557533900">05 57 53 39 00</a>
+                        </li>
+
+                        <li>
+                            <a href="mailto:Medjsalons@gmail.com">Medjsalons@gmail.com</a>
+                        </li>
                     </ul>
                 </div>
             </div>

@@ -30,7 +30,7 @@ require 'backendadmin.php';
     <div class="dashboard-container">
         <div class="sidebar" id="sidebar">
             <?php $messages_count = (int) ($unread_messages ?? $db->query("SELECT COUNT(*) FROM customer_messages")->fetchColumn());
-                $unseen_orders = (int) ($db->query("SELECT COALESCE(COUNT(*),0) FROM orders WHERE is_seen = 0")->fetchColumn()); ?>
+            $unseen_orders = (int) ($db->query("SELECT COALESCE(COUNT(*),0) FROM orders WHERE is_seen = 0")->fetchColumn()); ?>
             <div class="sidebar-nav">
                 <a href="dashboard.php"
                     class="sidebar-link <?= ($page ?? 'dashboard') === 'dashboard' ? 'active' : '' ?>">
@@ -40,7 +40,13 @@ require 'backendadmin.php';
                 <a href="dashboard.php?page=orders"
                     class="sidebar-link <?= ($page ?? '') === 'orders' ? 'active' : '' ?>">
                     <i class="fas fa-shopping-cart"></i>
-                    <span>Commandes <span class="badge" id="orders_unseen_badge"><?= (int) $unseen_orders ?></span></span>
+                    <span>Commandes <span class="badge"
+                            id="orders_unseen_badge"><?= (int) $unseen_orders ?></span></span>
+                </a>
+                <a href="dashboard.php?page=archives"
+                    class="sidebar-link <?= ($page ?? '') === 'archives' ? 'active' : '' ?>">
+                    <i class="fas fa-archive"></i>
+                    <span>Archives</span>
                 </a>
                 <a href="dashboard.php?page=products"
                     class="sidebar-link <?= ($page ?? '') === 'products' ? 'active' : '' ?>">
@@ -55,7 +61,8 @@ require 'backendadmin.php';
                 <a href="dashboard.php?page=messages"
                     class="sidebar-link <?= ($page ?? '') === 'messages' ? 'active' : '' ?>">
                     <i class="fas fa-comments"></i>
-                    <span>Messages <span class="badge"><?= (int) $messages_count ?></span></span>
+                    <span>Messages <span class="badge"
+                            id="messages_unseen_badge"><?= (int) $messages_count ?></span></span>
                 </a>
                 <a href="dashboard.php?page=wilayas"
                     class="sidebar-link <?= ($page ?? '') === 'wilayas' ? 'active' : '' ?>">
@@ -474,7 +481,8 @@ require 'backendadmin.php';
                                         <td>
                                             <form method="POST" class="status-form">
                                                 <input type="hidden" name="order_id" value="<?= $order['id'] ?>">
-                                                <select name="status" onchange="this.form.submit()">
+
+                                                <select name="status">
                                                     <option value="pending" <?= $order['status'] == 'pending' ? 'selected' : '' ?>>En attente</option>
                                                     <option value="processing" <?= $order['status'] == 'processing' ? 'selected' : '' ?>>En traitement</option>
                                                     <option value="shipped" <?= $order['status'] == 'shipped' ? 'selected' : '' ?>>Expédié</option>
@@ -482,6 +490,7 @@ require 'backendadmin.php';
                                                     <option value="archived" <?= $order['status'] == 'archived' ? 'selected' : '' ?>>Archivé</option>
                                                     <option value="canceled" <?= $order['status'] == 'canceled' ? 'selected' : '' ?>>Annulé</option>
                                                 </select>
+
                                                 <input type="hidden" name="update_order_status" value="1">
                                             </form>
                                         </td>
@@ -1035,8 +1044,7 @@ require 'backendadmin.php';
                                             <button class="btn btn-small btn-info" onclick="viewMessageCard(this)"> <i
                                                     class="fas fa-eye"></i></button>
                                             <?php if (empty($m['is_read'])): ?>
-                                                <button class="btn btn-small btn-success"
-                                                    onclick="markMessageRead(this, <?= $m['id'] ?>)"><i
+                                                <button class="btn btn-small btn-success" onclick="markMessageRead(this)"><i
                                                         class="fas fa-check"></i></button>
                                             <?php endif; ?>
                                             <button class="btn btn-small btn-danger"
@@ -1049,7 +1057,14 @@ require 'backendadmin.php';
                         <?php endif; ?>
                     </div>
                 </div>
+                <script>
+                    // Hide orders badge if zero
+                    const ordersBadge = document.getElementById('orders_unseen_badge');
+                    if (ordersBadge && parseInt(ordersBadge.textContent || '0') <= 0) ordersBadge.style.display = 'none';
 
+                    const messagesBadge = document.getElementById('messages_unseen_badge');
+                    if (messagesBadge && parseInt(messagesBadge.textContent || '0') <= 0) messagesBadge.style.display = 'none';
+                </script>
                 <!-- Message View Modal -->
                 <div class="modal" id="messageModal">
                     <div class="modal-content">
@@ -1201,87 +1216,77 @@ require 'backendadmin.php';
                     uniquement "Sur Commande" ou "Disponible".
                 </div>
 
-                <div class="modal-grid">
-                    <div class="modal-col">
-                        <div class="form-group">
-                            <label for="product_images">Images du produit <strong>*</strong></label>
-                            <input type="file" id="product_images" name="product_images[]" accept="image/*"
-                                style="display:none;">
-                            <div id="add-images-grid" class="image-grid" data-target-input="product_images"></div>
-                            <div style="font-size:12px; color:#666; margin-top:6px;">Cliquez sur le + pour ajouter des
-                                images. Au moins une image requise.</div>
-                        </div>
+                <div class="form-group">
+                    <label for="product_type">Type de produit <strong>*</strong></label>
+                    <select id="product_type" name="product_type" required>
+                        <option value="made_to_order">Sur Commande</option>
+                        <option value="available">Disponible</option>
+                    </select>
+                </div>
 
-                        <div class="form-group">
-                            <label for="product_type">Type de produit <strong>*</strong></label>
-                            <select id="product_type" name="product_type" required>
-                                <option value="made_to_order">Sur Commande</option>
-                                <option value="available">Disponible</option>
-                            </select>
-                        </div>
+                <div class="form-group">
+                    <label for="add_product_images">Images du produit <strong>*</strong></label>
+                    <div id="add-product-images" style="display:flex; gap:8px; align-items:center;"></div>
+                    <!-- Hidden input used as the file target when admin clicks the + tile. Having this input ensures change listeners and form submits work. -->
+                    <input type="file" id="add_product_images" name="product_images[]" accept="image/*" multiple
+                        style="display:none;">
+                </div>
 
-                        <div class="form-group">
-                            <label for="category_id">Catégorie</label>
-                            <?php $cats = $db->query("SELECT id, name FROM categories ORDER BY name")->fetchAll(PDO::FETCH_ASSOC); ?>
-                            <select name="category_id" id="category_id">
-                                <option value="">Aucune</option>
-                                <?php foreach ($cats as $ct): ?>
-                                    <option value="<?= $ct['id'] ?>"><?= htmlspecialchars($ct['name']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
+                <div class="form-group">
+                    <label for="name">Nom du produit <strong>*</strong></label>
+                    <input type="text" id="name" name="name" placeholder="Ex: Table basse 120x70" required>
+                </div>
 
+                <div class="form-group">
+                    <label for="category_id">Catégorie</label>
+                    <?php $cats = $db->query("SELECT id, name FROM categories ORDER BY name")->fetchAll(PDO::FETCH_ASSOC); ?>
+                    <select name="category_id" id="category_id">
+                        <option value="">Aucune</option>
+                        <?php foreach ($cats as $ct): ?>
+                            <option value="<?= $ct['id'] ?>"><?= htmlspecialchars($ct['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Description <strong>*</strong></label>
+                    <textarea id="description" name="description" placeholder="Brève description du produit"
+                        required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Dimensions (variantes) <strong>*</strong></label>
+                    <div id="dimensions-container">
+                        <!-- dimension rows will be added dynamically -->
                     </div>
+                    <button type="button" class="btn btn-small btn-secondary" onclick="addDimensionRow()">
+                        <i class="fas fa-plus"></i> Ajouter une dimension
+                    </button>
+                    <div style="font-size:12px; color:#666; margin-top:6px;">Ajoutez au moins une dimension et
+                        renseignez le label.</div>
+                    <!-- Colors container for add modal -->
+                    <div id="colors-container">
+                        <!-- Colors will be added by JavaScript -->
+                    </div>
+                    <button type="button" class="btn btn-small btn-secondary" onclick="addColorRow()">
+                        <i class="fas fa-plus"></i> Ajouter une couleur
+                    </button>
+                </div>
 
-                    <div class="modal-col">
-                        <div class="form-group">
-                            <label for="name">Nom du produit <strong>*</strong></label>
-                            <input type="text" id="name" name="name" placeholder="Ex: Table basse 120x70" required>
+                <div class="form-group">
+                    <label>Mettre à jour les Model</label>
+                    <div style="display:flex; gap:12px; align-items:flex-start; margin-top:6px;">
+                        <div style="flex:1">
+                            <label>Tissu (nuancier)</label><br>
+                            <input type="file" name="material_tissu" accept="image/*"><br>
+                            <textarea name="material_tissu_description" placeholder="Description (optionnel)"
+                                style="width:100%; margin-top:6px; height:60px;"></textarea>
                         </div>
-
-                        <div class="form-group">
-                            <label for="description">Description <strong>*</strong></label>
-                            <textarea id="description" name="description" placeholder="Brève description du produit"
-                                required></textarea>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Dimensions (variantes) <strong>*</strong></label>
-                            <div id="dimensions-container">
-                                <!-- dimension rows will be added dynamically -->
-                            </div>
-                            <button type="button" class="btn btn-small btn-secondary" onclick="addDimensionRow()">
-                                <i class="fas fa-plus"></i> Ajouter une dimension
-                            </button>
-                            <div style="font-size:12px; color:#666; margin-top:6px;">Ajoutez au moins une dimension et
-                                renseignez le label.</div>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Couleurs du produit (optionnel)</label>
-                            <div id="colors-container"></div>
-                            <button type="button" class="btn btn-small btn-secondary" onclick="addColorRow()">
-                                <i class="fas fa-plus"></i> Ajouter une couleur
-                            </button>
-                        </div>
-
-                        <div class="form-group">
-                            <label>Matériaux (nuanciers)</label>
-                            <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;"
-                                id="add-material-inputs">
-                                <div style="flex:1; min-width:200px;">
-                                    <label>Tissu (nuancier)</label>
-                                    <input type="file" name="material_tissu" accept="image/*">
-                                    <textarea name="material_tissu_description" placeholder="Description (optionnel)"
-                                        style="width:100%; margin-top:6px; height:60px;"></textarea>
-                                </div>
-                                <div style="flex:1; min-width:200px;">
-                                    <label>Bois (nuancier)</label>
-                                    <input type="file" name="material_bois" accept="image/*">
-                                    <textarea name="material_bois_description" placeholder="Description (optionnel)"
-                                        style="width:100%; margin-top:6px; height:60px;"></textarea>
-                                </div>
-                            </div>
+                        <div style="flex:1">
+                            <label>Bois (nuancier)</label><br>
+                            <input type="file" name="material_bois" accept="image/*"><br>
+                            <textarea name="material_bois_description" placeholder="Description (optionnel)"
+                                style="width:100%; margin-top:6px; height:60px;"></textarea>
                         </div>
                     </div>
                 </div>
@@ -1368,25 +1373,8 @@ require 'backendadmin.php';
                     <label>Images actuelles</label>
                     <div id="edit-product-images" style="display:flex; gap:8px; align-items:center;"></div>
                     <!-- Hidden input used as the file target when admin clicks the + tile. Having this input ensures change listeners and form submits work. -->
-                    <input type="file" id="edit_product_images" name="edit_product_images[]" accept="image/*" multiple style="display:none;">
-                </div>
-                <!-- Removed separate material-catalogs display and duplicate add-images block - images are managed in "Images actuelles" grid -->
-                <div class="form-group">
-                    <label>Mettre à jour les Model</label>
-                    <div style="display:flex; gap:12px; align-items:flex-start; margin-top:6px;">
-                        <div style="flex:1">
-                            <label>Tissu (nuancier)</label><br>
-                            <input type="file" name="material_tissu" accept="image/*"><br>
-                            <textarea name="material_tissu_description" placeholder="Description (optionnel)"
-                                style="width:100%; margin-top:6px; height:60px;"></textarea>
-                        </div>
-                        <div style="flex:1">
-                            <label>Bois (nuancier)</label><br>
-                            <input type="file" name="material_bois" accept="image/*"><br>
-                            <textarea name="material_bois_description" placeholder="Description (optionnel)"
-                                style="width:100%; margin-top:6px; height:60px;"></textarea>
-                        </div>
-                    </div>
+                    <input type="file" id="edit_product_images" name="edit_product_images[]" accept="image/*" multiple
+                        style="display:none;">
                 </div>
 
                 <div class="form-group">
@@ -1426,7 +1414,24 @@ require 'backendadmin.php';
                         <i class="fas fa-plus"></i> Ajouter une couleur
                     </button>
                 </div>
-
+                <!-- Removed separate material-catalogs display and duplicate add-images block - images are managed in "Images actuelles" grid -->
+                <div class="form-group">
+                    <label>Mettre à jour les Model</label>
+                    <div style="display:flex; gap:12px; align-items:flex-start; margin-top:6px;">
+                        <div style="flex:1">
+                            <label>Tissu (nuancier)</label><br>
+                            <input type="file" name="material_tissu" accept="image/*"><br>
+                            <textarea name="material_tissu_description" placeholder="Description (optionnel)"
+                                style="width:100%; margin-top:6px; height:60px;"></textarea>
+                        </div>
+                        <div style="flex:1">
+                            <label>Bois (nuancier)</label><br>
+                            <input type="file" name="material_bois" accept="image/*"><br>
+                            <textarea name="material_bois_description" placeholder="Description (optionnel)"
+                                style="width:100%; margin-top:6px; height:60px;"></textarea>
+                        </div>
+                    </div>
+                </div>
                 <div class="form-actions">
                     <button type="submit" class="btn">
                         <i class="fas fa-save"></i> Mettre à jour
@@ -1516,20 +1521,68 @@ require 'backendadmin.php';
             }
             // Reset product type and image inputs
             const pt = document.getElementById('product_type'); if (pt) pt.value = 'made_to_order';
-            const pimg = document.getElementById('product_images'); if (pimg) {
-                pimg.value = '';
-                // ensure grid is initialized with the add tile
-                const grid = document.getElementById('add-images-grid'); if (grid) {
-                    grid.innerHTML = '';
-                    initImageGrid('product_images', 'add-images-grid');
+
+            // Initialize add product images grid
+            const imgContainer = document.getElementById('add-product-images');
+            const addForm = document.getElementById('add_product_form');
+            if (imgContainer) {
+                imgContainer.innerHTML = '';
+                // add the '+' tile so admin can add new images
+                const addTile = document.createElement('div');
+                addTile.className = 'image-tile image-add-tile';
+                addTile.innerHTML = '<div class="plus">+</div>';
+                addTile.addEventListener('click', () => document.getElementById('add_product_images').click());
+                imgContainer.appendChild(addTile);
+
+                // wire up change handler for add file input
+                const addImageInput = document.getElementById('add_product_images');
+                if (addImageInput) {
+                    addImageInput.value = ''; // clear any previous value
+                    // remove old change listeners by cloning
+                    const newInput = addImageInput.cloneNode(true);
+                    addImageInput.parentNode.replaceChild(newInput, addImageInput);
+
+                    newInput.addEventListener('change', (e) => {
+                        if (!e.target.files || e.target.files.length === 0) return;
+                        // Show previews for newly selected files
+                        Array.from(e.target.files).forEach((file, idx) => {
+                            const url = URL.createObjectURL(file);
+                            const tile = document.createElement('div');
+                            tile.className = 'image-tile new-file';
+
+                            const imgEl = document.createElement('img');
+                            imgEl.src = url;
+                            imgEl.style.width = '100%';
+                            imgEl.style.height = '100%';
+                            imgEl.style.objectFit = 'cover';
+                            imgEl.style.borderRadius = '6px';
+                            tile.appendChild(imgEl);
+
+                            const removeBtn = document.createElement('button');
+                            removeBtn.type = 'button';
+                            removeBtn.className = 'btn btn-small btn-danger image-remove';
+                            removeBtn.textContent = '×';
+                            removeBtn.title = 'Retirer';
+                            removeBtn.addEventListener('click', (evt) => {
+                                evt.preventDefault();
+                                evt.stopPropagation();
+                                tile.remove();
+                                // Clear the file input to remove this file
+                                e.target.value = '';
+                            });
+                            tile.appendChild(removeBtn);
+
+                            imgContainer.insertBefore(tile, addTile);
+                        });
+                    });
                 }
             }
         }
 
         function hideAddProductModal() {
             document.getElementById('addProductModal').style.display = 'none';
-            const inp = document.getElementById('product_images'); if (inp) { inp.value = ''; }
-            const grid = document.getElementById('add-images-grid'); if (grid) grid.innerHTML = '';
+            const inp = document.getElementById('add_product_images'); if (inp) { inp.value = ''; }
+            const grid = document.getElementById('add-product-images'); if (grid) grid.innerHTML = '';
             // remove any dynamically created hidden inputs for images
             const addForm = document.getElementById('add_product_form');
             if (addForm) {
@@ -1587,14 +1640,14 @@ require 'backendadmin.php';
                         imgElement.style.border = '1px solid #ddd';
                         imgElement.style.borderRadius = '6px';
                         wrapper.appendChild(imgElement);
-                        
+
                         // Create the hidden input for tracking this image
                         const hiddenInput = document.createElement('input');
                         hiddenInput.type = 'hidden';
                         hiddenInput.name = 'existing_product_images[]';
                         hiddenInput.value = img.id;
                         wrapper.appendChild(hiddenInput);
-                        
+
                         // Create the delete button
                         const deleteBtn = document.createElement('button');
                         deleteBtn.type = 'button';
@@ -1608,7 +1661,7 @@ require 'backendadmin.php';
                             deleteProductImage(deleteBtn, img.id);
                         };
                         wrapper.appendChild(deleteBtn);
-                        
+
                         imgContainer.appendChild(wrapper);
                     });
                 }
@@ -1627,7 +1680,7 @@ require 'backendadmin.php';
                     // remove old change listeners by cloning
                     const newInput = editImageInput.cloneNode(true);
                     editImageInput.parentNode.replaceChild(newInput, editImageInput);
-                    
+
                     newInput.addEventListener('change', (e) => {
                         if (!e.target.files || e.target.files.length === 0) return;
                         // Show previews for newly selected files
@@ -1635,7 +1688,7 @@ require 'backendadmin.php';
                             const url = URL.createObjectURL(file);
                             const tile = document.createElement('div');
                             tile.className = 'image-tile new-file';
-                            
+
                             const imgEl = document.createElement('img');
                             imgEl.src = url;
                             imgEl.style.width = '100%';
@@ -1643,7 +1696,7 @@ require 'backendadmin.php';
                             imgEl.style.objectFit = 'cover';
                             imgEl.style.borderRadius = '6px';
                             tile.appendChild(imgEl);
-                            
+
                             const removeBtn = document.createElement('button');
                             removeBtn.type = 'button';
                             removeBtn.className = 'btn btn-small btn-danger image-remove';
@@ -1657,7 +1710,7 @@ require 'backendadmin.php';
                                 e.target.value = '';
                             });
                             tile.appendChild(removeBtn);
-                            
+
                             imgContainer.insertBefore(tile, addTile);
                         });
                     });
@@ -1892,10 +1945,12 @@ require 'backendadmin.php';
                 }).then(res => res.json()).then(data => {
                     if (data && data.ok) {
                         const badge = card.querySelector('.badge-unread'); if (badge) badge.remove();
-                        const sb = document.querySelector('.sidebar .badge');
+                        const sb = document.querySelector('.sidebar-link[href="#messages"] strong');
                         if (sb) {
                             const n = parseInt(sb.textContent || '0', 10) - 1;
-                            sb.textContent = n > 0 ? n : '';
+                            sb.textContent = n;
+                            const wrapper = sb.parentNode;
+                            wrapper.style.display = n > 0 ? '' : 'none';
                         }
                         card.dataset.isRead = '1';
                     }
@@ -1929,28 +1984,30 @@ require 'backendadmin.php';
             });
         }
 
-        function markMessageRead(btn, id) {
+        function markMessageRead(btn) {
+            const card = btn.closest('.message-card');
+            const id = card.dataset.id;
             fetch('backendadmin.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: 'mark_message_read=1&message_id=' + encodeURIComponent(id) + '&ajax=1'
             }).then(res => res.json()).then(data => {
                 if (data && data.ok) {
-                    const card = btn.closest('.message-card');
-                    if (card) {
-                        // remove unread badge
-                        const badge = card.querySelector('.badge-unread'); if (badge) badge.remove();
-                        // remove the mark button
-                        btn.remove();
-                        // update sidebar badge count
-                        const sb = document.querySelector('.sidebar .badge');
-                        if (sb) {
-                            const n = parseInt(sb.textContent || '0', 10) - 1;
-                            sb.textContent = n > 0 ? n : '';
-                        }
+                    // remove unread badge
+                    const badge = card.querySelector('.badge-unread'); if (badge) badge.remove();
+                    // remove the mark button
+                    btn.remove();
+                    // update sidebar badge count
+                    const sb = document.querySelector('.sidebar-link[href="#messages"] strong');
+                    if (sb) {
+                        const n = parseInt(sb.textContent || '0', 10) - 1;
+                        sb.textContent = n == 0 ? '' : n;
+                        const wrapper = sb.parentNode;
+                        wrapper.style.display = n > 0 ? '' : 'none';
                     }
+                    card.dataset.isRead = '1';
                 } else {
-                    alert('Erreur lors de la modification');
+                    alert(data.error || 'Erreur lors de la modification');
                 }
             }).catch(err => {
                 console.error(err);
@@ -2020,7 +2077,6 @@ require 'backendadmin.php';
         </div>
         <div class="dimension-row-actions">
             <label class="dim-checkbox"><input type="checkbox" name="dim_unlimited[]" value="1" onchange="onDimensionUnlimitedToggle(this)"> Illimité</label>
-            <label class="dim-checkbox">Par défaut <input type="checkbox" name="dim_is_default[]" value="1" onchange="ensureSingleDefault(this)"></label>
             <button type="button" class="btn btn-small btn-danger" onclick="removeDimensionRow(this)"><i class="fas fa-trash"></i></button>
         </div>
     `;
@@ -2065,7 +2121,6 @@ require 'backendadmin.php';
         </div>
         <div class="dimension-row-actions">
             <label class="dim-checkbox"><input type="checkbox" name="dim_unlimited[]" value="1" ${dimData && (dimData.stock == 9999999) ? 'checked' : ''} onchange="onDimensionUnlimitedToggle(this)"> Illimité</label>
-            <label class="dim-checkbox">Par défaut <input type="checkbox" name="dim_is_default[]" value="1" ${dimData && dimData.is_default ? 'checked' : ''} onchange="ensureSingleDefault(this)"></label>
             <button type="button" class="btn btn-small btn-danger" onclick="removeDimensionRow(this)"><i class="fas fa-trash"></i></button>
         </div>
     `;
@@ -2436,9 +2491,7 @@ require 'backendadmin.php';
                 showTab('archives');
             }
 
-            // Hide orders badge if zero
-            const ordersBadge = document.getElementById('orders_unseen_badge');
-            if (ordersBadge && parseInt(ordersBadge.textContent || '0') <= 0) ordersBadge.style.display = 'none';
+
 
             // AJAX upload helper: upload new images from edit modal without full form submit
             const editInput = document.getElementById('edit_product_images');

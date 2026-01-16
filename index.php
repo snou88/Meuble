@@ -108,7 +108,7 @@
     <section class="categories section" id="collections">
         <div class="container">
             <div class="section-header">
-                <h2 class="section-title">Nos Collections</h2>
+                <h2 class="section-title">Sur commandes</h2>
                 <p class="section-subtitle">Explorez nos univers dédiés à chaque pièce de votre maison</p>
             </div>
 
@@ -179,7 +179,7 @@
     <section class="products section" id="produits">
         <div class="container">
             <div class="section-header">
-                <h2 class="section-title">Produits</h2>
+                <h2 class="section-title">Produits disponibles</h2>
                 <p class="section-subtitle">Une sélection de nos pièces les plus prisées</p>
             </div>
 
@@ -192,7 +192,7 @@
                     $sql = "SELECT p.*, 
                                 (SELECT MIN(pd.price) FROM product_dimensions pd WHERE pd.product_id = p.id) AS min_price,
                                 (SELECT pi.image_path FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.id LIMIT 1) AS primary_image
-                                FROM products p ORDER BY RAND() LIMIT 3";
+                                FROM products p WHERE p.product_type = 'available' ORDER BY RAND() LIMIT 3";
                     $stmt = $db->query($sql);
                     $featured = $stmt->fetchAll();
                 } catch (Exception $e) {
@@ -335,6 +335,12 @@
             </div>
         </div>
     </section>
+    <div id="popup" class="popup-overlay">
+        <div class="popup-content" id="popup-content">
+            <p id="popup-message"></p>
+            <button class="popup-close" onclick="closePopup()">OK</button>
+        </div>
+    </div>
 
     <!-- Footer -->
     <footer class="footer" id="contact">
@@ -403,8 +409,13 @@
                 <div class="footer-col">
                     <h4 class="footer-title">Contact</h4>
                     <ul class="footer-links">
-                        <li><a href="#accueil">05 55 55 55 55</a></li>
-                        <li><a href="#produits"></a>amameuble@gmail.com</li>
+                        <li>
+                            <a href="tel:+213557533900">05 57 53 39 00</a>
+                        </li>
+
+                        <li>
+                            <a href="mailto:Medjsalons@gmail.com">Medjsalons@gmail.com</a>
+                        </li>
                     </ul>
                 </div>
             </div>
@@ -425,5 +436,11 @@
 
     <script src="assets/js/script.js"></script>
 </body>
-
+<?php if (isset($messageStatus)): ?>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            showPopup("<?= htmlspecialchars($messageStatus['msg']) ?>", <?= $messageStatus['ok'] ? 'true' : 'false' ?>);
+        });
+    </script>
+<?php endif; ?>
 </html>

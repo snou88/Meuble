@@ -392,3 +392,27 @@ function animateCounter(element, target, duration = 2000) {
 // ============================================
 // LOAD COMPLETE
 // ============================================
+
+
+function showPopup(message, isSuccess = true) {
+    const popup = document.getElementById('popup');
+    const popupContent = document.getElementById('popup-content');
+    const popupMessage = document.getElementById('popup-message');
+
+    popupMessage.textContent = message;
+
+    // Applique la couleur selon succès ou erreur
+    if(isSuccess) {
+        popupContent.classList.add('popup-success');
+        popupContent.classList.remove('popup-error');
+    } else {
+        popupContent.classList.add('popup-error');
+        popupContent.classList.remove('popup-success');
+    }
+
+    popup.style.display = 'flex';
+}
+
+function closePopup() {
+    document.getElementById('popup').style.display = 'none';
+}

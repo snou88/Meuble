@@ -211,14 +211,14 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
                 const promo = cd.promo_percent ? parseInt(cd.promo_percent) : 0;
                 if (priceNew !== null) {
                     oldEl.style.display = '';
-                    oldEl.textContent = Number(price).toLocaleString('fr-FR', {maximumFractionDigits:0}) + ' DA';
+                    oldEl.textContent = Number(price).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' DA';
                     if (promo) { promoEl.style.display = ''; promoEl.textContent = '-' + promo + '%'; }
                     else { promoEl.style.display = 'none'; promoEl.textContent = ''; }
-                    priceEl.textContent = Number(priceNew).toLocaleString('fr-FR', {maximumFractionDigits:0}) + ' DA';
+                    priceEl.textContent = Number(priceNew).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' DA';
                 } else {
                     oldEl.style.display = 'none'; oldEl.textContent = '';
                     promoEl.style.display = 'none'; promoEl.textContent = '';
-                    priceEl.textContent = Number(price).toLocaleString('fr-FR', {maximumFractionDigits:0}) + ' DA';
+                    priceEl.textContent = Number(price).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) + ' DA';
                 }
                 // reset quantity to 1 and update increase state
                 qtySpan.textContent = '1';
@@ -235,16 +235,16 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
             document.querySelectorAll('.material-thumb').forEach(t => {
                 t.addEventListener('click', function () {
                     const src = this.dataset.src || this.src;
-                    const zm = document.getElementById('imageZoomModal');
-                    const zmImg = document.getElementById('zoomImage');
+                    const zm = document.getElementById('imageModal');
+                    const zmImg = document.getElementById('modalImage');
                     zmImg.src = src;
                     zm.style.display = 'flex';
                 });
             });
 
             // Close zoom
-            const zm = document.getElementById('imageZoomModal');
-            if (zm) zm.addEventListener('click', e => { if (e.target === zm || e.target.id === 'zoomClose') zm.style.display = 'none'; });
+            const zm = document.getElementById('imageModal');
+            if (zm) zm.addEventListener('click', e => { if (e.target === zm || e.target.id === 'closeModal') zm.style.display = 'none'; });
 
             // Add to cart
             addToCartBtn.addEventListener('click', async () => {
@@ -257,7 +257,7 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
                 if (hasFabricOptions && !selectedFabric) missing.push('la couleur du tissu');
                 if (hasWoodOptions && !selectedWood) missing.push('la couleur du bois');
                 if (missing.length > 0) { alert('Veuillez sélectionner ' + missing.join(' et ') + '.'); addToCartBtn.disabled = false; return; }
-                
+
                 // If no fabric/wood options exist, set to null
                 const fabric = selectedFabric ? selectedFabric.dataset.colorName : null;
                 const wood = selectedWood ? selectedWood.dataset.woodName : null;
@@ -365,9 +365,11 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
             <div class="product-details">
                 <h1><?= htmlspecialchars($product['name']) ?></h1>
                 <p class="price" id="price">
-                    <span id="oldPrice" style="color:#888;text-decoration:line-through;display:none;margin-right:8px;"></span>
+                    <span id="oldPrice"
+                        style="color:#888;text-decoration:line-through;display:none;margin-right:8px;"></span>
                     <span id="promoPercent" style="color:#c00;display:none;margin-right:8px;"></span>
-                    <span id="currentPrice" style="font-weight:600;"><?= number_format($minPrice, 2, ',', ' ') ?> DA</span>
+                    <span id="currentPrice" style="font-weight:600;"><?= number_format($minPrice, 2, ',', ' ') ?>
+                        DA</span>
                 </p>
 
                 <div class="option-group">
@@ -376,28 +378,62 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
                         <?php if (!empty($dimensions)): ?>
                             <?php if (count($dimensions) > 1): ?>
                                 <label for="dimensionSelect">Choisir la dimension</label>
-                                <select id="dimensionSelect" name="dimension" style="width:100%;margin:8px 0 12px 0;padding:8px;">
-                                    <?php foreach ($dimensions as $dopt): ?>
-                                        <option value="<?= (int)$dopt['id'] ?>" <?= ((int)$dopt['id'] === (int)($dimensions[0]['id'] ?? 0)) ? 'selected' : '' ?>><?= htmlspecialchars($dopt['label']) ?> — <?= number_format($dopt['price'], 0, ',', ' ') ?> DA<?= (isset($dopt['price_new']) && $dopt['price_new'] !== null && $dopt['price_new'] !== '') ? ' (Promo ' . ((int)$dopt['promo_percent']) . '%)' : '' ?></option>
-                                    <?php endforeach; ?>
-                                </select>
+                                <div class="custom-select-wrapper">
+                                    <select id="dimensionSelect" name="dimension" class="custom-select">
+                                        <?php foreach ($dimensions as $dopt): ?>
+                                            <option value="<?= (int) $dopt['id'] ?>" <?= ((int) $dopt['id'] === (int) ($dimensions[0]['id'] ?? 0)) ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars($dopt['label']) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <!-- Flèche SVG -->
+                                    <svg class="select-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                        viewBox="0 0 24 24">
+                                        <path fill="none" stroke="#666" stroke-width="2" d="M6 9l6 6 6-6" />
+                                    </svg>
+                                </div>
+                                <script>
+                                    const select = document.getElementById('dimensionSelect');
+                                    const wrapper = select.parentElement;
+
+                                    select.addEventListener('mousedown', () => {
+                                        wrapper.classList.add('open');
+                                    });
+
+                                    select.addEventListener('blur', () => {
+                                        wrapper.classList.remove('open');
+                                    });
+                                </script>
+
+                                <style>
+                                    .custom-select-wrapper.open::after {
+                                        transform: translateY(-50%) rotate(180deg);
+                                    }
+                                </style>
+                            <?php else: ?>
+                                <strong>
+                                    <?= htmlspecialchars($d['label']) ?>
+                                </strong>
                             <?php endif; ?>
                             <?php foreach ($dimensions as $i => $d): ?>
                                 <?php
-                                    $hiddenStyle = (count($dimensions) > 1 && $i !== 0) ? 'display:none;' : '';
+                                $hiddenStyle = (count($dimensions) > 1 && $i !== 0) ? 'display:none;' : '';
                                 ?>
-                                <div class="dimension-info"
-                                     style="<?= $hiddenStyle ?>"
-                                     data-dimension-id="<?= (int) $d['id'] ?>"
-                                     data-price="<?= htmlspecialchars($d['price']) ?>"
-                                     data-price-new="<?= isset($d['price_new']) ? htmlspecialchars($d['price_new']) : '' ?>"
-                                     data-promo="<?= isset($d['promo_percent']) ? (int) $d['promo_percent'] : 0 ?>"
-                                     data-stock="<?= (int) $d['stock'] ?>">
-                                    <strong><?= htmlspecialchars($d['label']) ?></strong>
+                                <div class="dimension-info" style="<?= $hiddenStyle ?>"
+                                    data-dimension-id="<?= (int) $d['id'] ?>" data-price="<?= htmlspecialchars($d['price']) ?>"
+                                    data-price-new="<?= isset($d['price_new']) ? htmlspecialchars($d['price_new']) : '' ?>"
+                                    data-promo="<?= isset($d['promo_percent']) ? (int) $d['promo_percent'] : 0 ?>"
+                                    data-stock="<?= (int) $d['stock'] ?>">
                                     <div class="dim-values">
-                                        <span>Largeur: <?= (int) $d['width_cm'] ?> cm</span>
-                                        <span>Hauteur: <?= (int) $d['height_cm'] ?> cm</span>
-                                        <span>Profondeur: <?= (int) ($d['depth_cm'] ?? 0) ?> cm</span>
+                                        <?php if ($d['width_cm'] > 0): ?>
+                                            <span>Largeur: <?= (int) $d['width_cm'] ?> cm</span>
+                                        <?php endif; ?>
+                                        <?php if ($d['height_cm'] > 0): ?>
+                                            <span>Hauteur: <?= (int) $d['height_cm'] ?> cm</span>
+                                        <?php endif; ?>
+                                        <?php if ($d['depth_cm'] > 0): ?>
+                                            <span>Profondeur: <?= (int) $d['depth_cm'] ?> cm</span>
+                                        <?php endif; ?>
                                     </div>
                                     <div class="dim-stock">
                                         <?php if ((int) $d['stock'] >= 9999999): ?>
@@ -416,56 +452,58 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
                 </div>
 
                 <?php if (!empty($fabricColors)): ?>
-                <div class="option-group">
-                    <h3>Couleur du tissu</h3>
-                    <div style="display:flex; gap:12px; align-items:flex-start;">
-                        <div class="options" id="fabricColorOptions" style="flex:1;">
-                            <?php foreach ($fabricColors as $c): ?>
-                                <button class="color-option" data-color-name="<?= htmlspecialchars($c['color_name']) ?>"
-                                    data-color-code="<?= htmlspecialchars($c['color_code']) ?>"
-                                    title="<?= htmlspecialchars($c['color_name']) ?>"
-                                    style="background-color: <?= htmlspecialchars($c['color_code'] ?: '#ccc') ?>;"
-                                    tabindex="0" role="button" aria-pressed="false"></button>
-                            <?php endforeach; ?>
-                        </div>
-                        <?php if (!empty($materialByType['tissu'])): ?>
-                            <div style="flex:0 0 120px; text-align:center;">
-                                <div style="font-size:12px;color:#666;margin-bottom:6px;">Matériaux</div>
-                                <img src="<?= htmlspecialchars($materialByType['tissu']['image_path']) ?>"
-                                    alt="Nuancier tissu" class="material-thumb"
-                                    style="width:120px;object-fit:cover;cursor:pointer;border:1px solid #ddd;border-radius:6px;"
-                                    data-src="<?= htmlspecialchars($materialByType['tissu']['image_path']) ?>">
+                    <div class="option-group">
+                        <h3>Couleur du tissu</h3>
+                        <div style="display:flex; gap:12px; align-items:flex-start;">
+                            <div class="options" id="fabricColorOptions" style="flex:1;">
+                                <?php foreach ($fabricColors as $c): ?>
+                                    <button class="color-option" data-color-name="<?= htmlspecialchars($c['color_name']) ?>"
+                                        data-color-code="<?= htmlspecialchars($c['color_code']) ?>"
+                                        title="<?= htmlspecialchars($c['color_name']) ?>"
+                                        style="background-color: <?= htmlspecialchars($c['color_code'] ?: '#ccc') ?>; color: white; font-size: 45px; font-weight: bold; display: flex; align-items: center; justify-content: center; text-align: center;"
+                                        tabindex="0" role="button"
+                                        aria-pressed="false"><?= htmlspecialchars($c['color_name']) ?></button>
+                                <?php endforeach; ?>
                             </div>
-                        <?php endif; ?>
+                            <?php if (!empty($materialByType['tissu'])): ?>
+                                <div style="flex:0 0 120px; text-align:center;">
+                                    <div style="font-size:12px;color:#666;margin-bottom:6px;">Matériaux</div>
+                                    <img src="<?= htmlspecialchars($materialByType['tissu']['image_path']) ?>"
+                                        alt="Nuancier tissu" class="material-thumb"
+                                        style="width:120px;object-fit:cover;cursor:pointer;border:1px solid #ddd;border-radius:6px;"
+                                        data-src="<?= htmlspecialchars($materialByType['tissu']['image_path']) ?>">
+                                </div>
+                            <?php endif; ?>
+                        </div>
                     </div>
-                </div>
                 <?php endif; ?>
 
                 <?php if (!empty($woodColors)): ?>
-                <div class="option-group">
-                    <h3>Couleur des pieds</h3>
-                    <div style="display:flex; gap:12px; align-items:flex-start;">
-                        <div class="options" id="woodColorOptions" style="flex:1;">
-                            <?php foreach ($woodColors as $c): ?>
-                                <button class="color-option" data-wood-name="<?= htmlspecialchars($c['color_name']) ?>"
-                                    data-wood-code="<?= htmlspecialchars($c['color_code']) ?>"
-                                    title="<?= htmlspecialchars($c['color_name']) ?>"
-                                    style="background-color: <?= htmlspecialchars($c['color_code'] ?: '#ccc') ?>; border:1px solid #ddd;"
-                                    tabindex="0" role="button" aria-pressed="false">
-                                </button>
-                            <?php endforeach; ?>
-                        </div>
-                        <?php if (!empty($materialByType['bois'])): ?>
-                            <div style="flex:0 0 120px; text-align:center;">
-                                <div style="font-size:12px;color:#666;margin-bottom:6px;">Matériaux</div>
-                                <img src="<?= htmlspecialchars($materialByType['bois']['image_path']) ?>"
-                                    alt="Nuancier bois" class="material-thumb"
-                                    style="width:120px;object-fit:cover;cursor:pointer;border:1px solid #ddd;border-radius:6px;"
-                                    data-src="<?= htmlspecialchars($materialByType['bois']['image_path']) ?>">
+                    <div class="option-group">
+                        <h3>Couleur des pieds</h3>
+                        <div style="display:flex; gap:12px; align-items:flex-start;">
+                            <div class="options" id="woodColorOptions" style="flex:1;">
+                                <?php foreach ($woodColors as $c): ?>
+                                    <button class="color-option" data-wood-name="<?= htmlspecialchars($c['color_name']) ?>"
+                                        data-wood-code="<?= htmlspecialchars($c['color_code']) ?>"
+                                        title="<?= htmlspecialchars($c['color_name']) ?>"
+                                        style="background-color: <?= htmlspecialchars($c['color_code'] ?: '#ccc') ?>; border:1px solid #ddd; color: white; font-size: 45px; font-weight: bold; display: flex; align-items: center; justify-content: center; text-align: center;"
+                                        tabindex="0" role="button" aria-pressed="false">
+                                        <?= htmlspecialchars($c['color_name']) ?>
+                                    </button>
+                                <?php endforeach; ?>
                             </div>
-                        <?php endif; ?>
+                            <?php if (!empty($materialByType['bois'])): ?>
+                                <div style="flex:0 0 120px; text-align:center;">
+                                    <div style="font-size:12px;color:#666;margin-bottom:6px;">Matériaux</div>
+                                    <img src="<?= htmlspecialchars($materialByType['bois']['image_path']) ?>"
+                                        alt="Nuancier bois" class="material-thumb"
+                                        style="width:120px;object-fit:cover;cursor:pointer;border:1px solid #ddd;border-radius:6px;"
+                                        data-src="<?= htmlspecialchars($materialByType['bois']['image_path']) ?>">
+                                </div>
+                            <?php endif; ?>
+                        </div>
                     </div>
-                </div>
                 <?php endif; ?>
 
                 <div class="quantity-selector">
@@ -484,16 +522,6 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
         </div>
     </div>
 
-    <!-- Image zoom modal -->
-    <div id="imageZoomModal" class="image-zoom-modal"
-        style="display:none;position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;z-index:9999;">
-        <div style="position:relative;max-width:90%;max-height:90%;">
-            <button id="zoomClose"
-                style="position:absolute;right:-36px;top:-36px;background:#fff;border-radius:50%;width:36px;height:36px;border:none;cursor:pointer;">✕</button>
-            <img id="zoomImage" src=""
-                style="max-width:100%;max-height:100%;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,0.5);">
-        </div>
-    </div>
     <!-- Footer -->
     <footer class="footer" id="contact">
         <div class="container">
@@ -563,8 +591,13 @@ if (!empty($initialThumbnails) && isset($initialThumbnails[0]['image_path'])) {
                 <div class="footer-col">
                     <h4 class="footer-title">Contact</h4>
                     <ul class="footer-links">
-                        <li><a href="#accueil">05 55 55 55 55</a></li>
-                        <li><a href="#produits"></a>amameuble@gmail.com</li>
+                        <li>
+                            <a href="tel:+213557533900">05 57 53 39 00</a>
+                        </li>
+
+                        <li>
+                            <a href="mailto:Medjsalons@gmail.com">Medjsalons@gmail.com</a>
+                        </li>
                     </ul>
                 </div>
             </div>
