@@ -191,6 +191,8 @@
                     $db = getDBConnection();
                     $sql = "SELECT p.*, 
                                 (SELECT MIN(pd.price) FROM product_dimensions pd WHERE pd.product_id = p.id) AS min_price,
+                                (SELECT MIN(pd.price_new) FROM product_dimensions pd WHERE pd.product_id = p.id AND pd.price_new IS NOT NULL) AS min_price_new,
+                                (SELECT pd.promo_percent FROM product_dimensions pd WHERE pd.product_id = p.id AND pd.price_new IS NOT NULL ORDER BY pd.price_new ASC LIMIT 1) AS promo_percent,
                                 (SELECT pi.image_path FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.id LIMIT 1) AS primary_image
                                 FROM products p WHERE p.product_type = 'available' ORDER BY RAND() LIMIT 3";
                     $stmt = $db->query($sql);
@@ -204,7 +206,9 @@
                 } else {
                     foreach ($featured as $i => $prod):
                         $img = !empty($prod['primary_image']) ? $prod['primary_image'] : 'assets/images/default_product.jpg';
-                        $price = isset($prod['min_price']) ? number_format($prod['min_price'], 0, ',', ' ') . ' DA' : '';
+                        $minP = isset($prod['min_price']) ? (float) $prod['min_price'] : 0.0;
+                        $minPriceNew = isset($prod['min_price_new']) && $prod['min_price_new'] !== null ? (float) $prod['min_price_new'] : null;
+                        $promo = isset($prod['promo_percent']) ? (int) $prod['promo_percent'] : 0;
                         $name = htmlspecialchars($prod['name']);
                         $desc = !empty($prod['description']) ? htmlspecialchars($prod['description']) : '';
                         $link = 'produit.php?id=' . (int) $prod['id'];
@@ -217,7 +221,25 @@
                                 <h3 class="product-name"><?= $name ?></h3>
                                 <p class="product-description"><?= $desc ?></p>
                                 <div class="product-footer">
-                                    <span class="product-price"><?= $price ?></span>
+                                    <?php if ($minPriceNew !== null): ?>
+                                        <div style="display: flex; flex-direction: column;">
+                                            <span class="product-price-old" style="color:#888;text-decoration:line-through;margin-right:8px; font-size: 28px; font-weight: 700;">
+                                                <?= number_format($minP, 0, ',', ' ') ?> DA
+                                            </span>
+                                            <?php if ($promo): ?>
+                                                <span class="product-promo" style="color:#c00;margin-right:8px;font-size: 24px; font-weight: 700; position: relative; left: 270px; top: 0px;">
+                                                    -<?= $promo ?>%
+                                                </span>
+                                            <?php endif; ?>
+                                            <span class="product-price-new" style="color:#c00;font-weight:700; font-size: 28px; display: flex;">
+                                                <?= number_format($minPriceNew, 0, ',', ' ') ?> DA
+                                            </span>
+                                        </div>
+                                    <?php else: ?>
+                                        <span class="product-price">
+                                            <?= number_format($minP, 0, ',', ' ') ?> DA
+                                        </span>
+                                    <?php endif; ?>
                                     <a href="<?= $link ?>"><button class="btn btn-secondary">Voir le produit</button></a>
                                 </div>
                             </div>
